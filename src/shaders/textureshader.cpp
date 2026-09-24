@@ -1,5 +1,7 @@
 #include "shaders/textureshader.h"
 
+#include <QOpenGLContext>
+
 using namespace mixxx;
 
 void TextureShader::init() {
@@ -15,11 +17,14 @@ void main()
 }
 )--");
 
-    QString fragmentShaderCode = QStringLiteral(R"--(
-#version 120
+    // #version 120 is not valid GLSL ES, so only request it for desktop OpenGL.
+    const QOpenGLContext* pContext = QOpenGLContext::currentContext();
+    const bool isOpenGLES = pContext && pContext->isOpenGLES();
+    QString fragmentShaderCode = isOpenGLES ? QString() : QStringLiteral("#version 120\n");
+    fragmentShaderCode += QStringLiteral(R"--(
 uniform sampler2D texture;
 varying highp vec2 vTexcoord;
-uniform float alpha;
+uniform highp float alpha;
 void main()
 {
     gl_FragColor = texture2D(texture, vTexcoord) * vec4(1.0, 1.0, 1.0, alpha > .0 ? alpha : 1.0);
