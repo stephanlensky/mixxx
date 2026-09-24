@@ -2,6 +2,7 @@
 
 #include <QFile>
 #ifdef USE_QSHADER_FOR_GL
+#include <QOpenGLContext>
 #include <rhi/qshader.h>
 #endif
 
@@ -22,7 +23,13 @@ QByteArray loadShaderCodeFromFile(const QString& path) {
         return QByteArray();
     }
     QShader qsbShader = QShader::fromSerialized(file.readAll());
-    QShaderKey key(QShader::GlslShader, 120);
+    // Pick the GLSL ES variant if the context is OpenGL ES, e.g. on
+    // Wayland with the NVIDIA driver, because desktop GLSL won't compile there.
+    const QOpenGLContext* pContext = QOpenGLContext::currentContext();
+    const QShaderVersion version = pContext && pContext->isOpenGLES()
+            ? QShaderVersion(100, QShaderVersion::GlslEs)
+            : QShaderVersion(120);
+    QShaderKey key(QShader::GlslShader, version);
     return qsbShader.shader(key).shader();
 }
 #else
