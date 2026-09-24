@@ -1,6 +1,7 @@
 #include "controllerscriptinterfacelegacy.h"
 
 #include <QStringEncoder>
+#include <algorithm>
 #include <gsl/pointers>
 
 #include "control/controlobject.h"
@@ -26,6 +27,17 @@ constexpr int kScratchTimerMs = 1;
 constexpr double kAlphaBetaDt = kScratchTimerMs / 1000.0;
 // stop ramping at a rate which doesn't produce any audible output anymore
 constexpr double kBrakeRampToRate = 0.01;
+// When the jog wheel is released while spinning backwards faster than this
+// rate, the backspin keeps its momentum and coasts out instead of snapping back
+// to the target rate. Slower reverse movements, like the back strokes of
+// regular scratches, are not affected.
+constexpr double kBackspinMomentumMinRate = -2.0;
+// Deceleration of a coasting backspin in rate units per second, i.e. a
+// backspin released at -10x normal speed takes 10 / 6 s to come to a halt.
+constexpr double kBackspinMomentumDeceleration = 6.0;
+// Upper bound for the time step of the momentum integration to avoid jumps
+// when the timer was delayed, e.g. by a busy GUI thread.
+constexpr mixxx::Duration kMaxMomentumTimeStep = mixxx::Duration::fromMillis(50);
 } // namespace
 
 ControllerScriptInterfaceLegacy::ControllerScriptInterfaceLegacy(
@@ -43,6 +55,9 @@ ControllerScriptInterfaceLegacy::ControllerScriptInterfaceLegacy(
     m_brakeActive.resize(kDecks);
     m_spinbackActive.resize(kDecks);
     m_softStartActive.resize(kDecks);
+    m_momentumActive.resize(kDecks);
+    m_momentumRate.resize(kDecks);
+    m_momentumLastUpdate.resize(kDecks);
     // Initialize arrays used for testing and pointers
     for (int i = 0; i < kDecks; ++i) {
         m_dx[i] = 0.0;
@@ -51,6 +66,8 @@ ControllerScriptInterfaceLegacy::ControllerScriptInterfaceLegacy(
         m_brakeActive[i] = false;
         m_spinbackActive[i] = false;
         m_softStartActive[i] = false;
+        m_momentumActive[i] = false;
+        m_momentumRate[i] = 0.0;
     }
 }
 
@@ -708,6 +725,9 @@ void ControllerScriptInterfaceLegacy::scratchEnable(int deck,
     m_ramp[deck] = false;
     m_rampFactor[deck] = 0.001;
     m_brakeActive[deck] = false;
+    // Grabbing the wheel again stops a coasting backspin. The current rate is
+    // taken over below from scratch2 if ramping is desired.
+    m_momentumActive[deck] = false;
 
     // PlayerManager::groupForDeck is 0-indexed.
     QString group = PlayerManager::groupForDeck(deck - 1);
@@ -772,6 +792,23 @@ void ControllerScriptInterfaceLegacy::scratchProcess(int timerId) {
     AlphaBetaFilter* filter = m_scratchFilters[deck];
     if (!filter) {
         qCWarning(m_logger) << "Scratch filter pointer is null on deck" << deck;
+        return;
+    }
+
+    if (m_momentumActive[deck]) {
+        // The accumulated wheel movement is ignored while coasting
+        m_intervalAccumulator[deck] = 0;
+        if (scratchProcessMomentum(deck, group)) {
+            m_momentumActive[deck] = false;
+            m_ramp[deck] = false;
+            ControlObjectScript* pScratch2Enable =
+                    getControlObjectScript(group, "scratch2_enable");
+            if (pScratch2Enable != nullptr) {
+                pScratch2Enable->set(0);
+            }
+            stopScratchTimer(timerId);
+            m_dx[deck] = 0.0;
+        }
         return;
     }
 
@@ -868,9 +905,65 @@ void ControllerScriptInterfaceLegacy::scratchProcess(int timerId) {
     }
 }
 
+bool ControllerScriptInterfaceLegacy::scratchProcessMomentum(
+        int deck, const QString& group) {
+    if (!isTrackLoaded(group)) {
+        return true;
+    }
+    ControlObjectScript* pScratch2 = getControlObjectScript(group, "scratch2");
+    if (pScratch2 == nullptr) {
+        return false; // abort and maybe it'll work on the next pass
+    }
+
+    const mixxx::Duration now = mixxx::Time::elapsed();
+    const double dt = std::min(now - m_momentumLastUpdate[deck], kMaxMomentumTimeStep)
+                              .toDoubleSeconds();
+    m_momentumLastUpdate[deck] = now;
+
+    // Re-evaluate the target on every pass, so pressing play or stop while the
+    // backspin is coasting out behaves like on a turntable: the record either
+    // comes to a halt or is pulled back up to speed by the motor.
+    const double targetRate = isDeckPlaying(group) ? getDeckRate(group) : 0.0;
+
+    double rate = m_momentumRate[deck];
+    const double step = kBackspinMomentumDeceleration * dt;
+    if (rate < targetRate) {
+        rate = std::min(rate + step, targetRate);
+    } else {
+        rate = std::max(rate - step, targetRate);
+    }
+    m_momentumRate[deck] = rate;
+    pScratch2->set(rate);
+
+#if SCRATCH_DEBUG_OUTPUT
+    qDebug() << "     momentum rate" << rate << "target" << targetRate;
+#endif
+    return rate == targetRate;
+}
+
 void ControllerScriptInterfaceLegacy::scratchDisable(int deck, bool ramp) {
     // PlayerManager::groupForDeck is 0-indexed.
     QString group = PlayerManager::groupForDeck(deck - 1);
+
+    // If the wheel is released during a fast backspin, keep the momentum and
+    // let the backspin coast out, which allows for backspin transitions.
+    // Brake, spinback and softStart are driven by their own ramps.
+    if (m_momentumActive[deck]) {
+        if (ramp) {
+            return; // already coasting
+        }
+        m_momentumActive[deck] = false;
+    } else if (ramp && m_scratchTimers.key(deck, 0) != 0 && !m_brakeActive[deck] &&
+            !m_spinbackActive[deck] && !m_softStartActive[deck]) {
+        const double releaseRate = m_scratchFilters[deck]->predictedVelocity();
+        if (releaseRate < kBackspinMomentumMinRate) {
+            m_momentumActive[deck] = true;
+            m_momentumRate[deck] = releaseRate;
+            m_momentumLastUpdate[deck] = mixxx::Time::elapsed();
+            m_ramp[deck] = true;
+            return;
+        }
+    }
 
     m_rampTo[deck] = 0.0;
 
@@ -920,6 +1013,7 @@ void ControllerScriptInterfaceLegacy::brake(int deck, bool activate, double fact
     // Don't kill timer yet! This may be a brake init while currently spinning back
     // and we don't want to interrupt that.
     int timerId = m_scratchTimers.key(deck);
+    m_momentumActive[deck] = false;
 
     if (!activate) {
         m_brakeActive[deck] = false;
@@ -999,6 +1093,7 @@ void ControllerScriptInterfaceLegacy::softStart(int deck, bool activate, double 
     // kill timer when both enabling or disabling
     int timerId = m_scratchTimers.key(deck);
     stopScratchTimer(timerId);
+    m_momentumActive[deck] = false;
 
     // enable/disable scratch2 mode
     ControlObjectScript* pScratch2Enable = getControlObjectScript(group, "scratch2_enable");

@@ -144,10 +144,17 @@ class ControllerScriptInterfaceLegacy : public QObject {
     QVarLengthArray<mixxx::Duration> m_lastMovement;
     QVarLengthArray<double> m_dx, m_rampTo, m_rampFactor;
     QVarLengthArray<bool> m_ramp, m_brakeActive, m_spinbackActive, m_softStartActive;
+    /// Backspin momentum after releasing the jog wheel, see scratchDisable()
+    QVarLengthArray<bool> m_momentumActive;
+    QVarLengthArray<double> m_momentumRate;
+    QVarLengthArray<mixxx::Duration> m_momentumLastUpdate;
     QVarLengthArray<AlphaBetaFilter*> m_scratchFilters;
     QHash<int, int> m_scratchTimers;
     /// Applies the accumulated movement to the track speed
     void scratchProcess(int timerId);
+    /// Lets a backspin coast after the jog wheel was released.
+    /// Returns true when the momentum run-out has finished.
+    bool scratchProcessMomentum(int deck, const QString& group);
     void stopScratchTimer(int timerId);
     bool isDeckPlaying(const QString& group);
     void stopDeck(const QString& group);

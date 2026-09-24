@@ -333,6 +333,12 @@ declare namespace engine {
     /**
      * Jogwheel function to be called when scratching ends (usually when the wheel is released)
      *
+     * If ramping is enabled and the wheel is released during a fast backspin
+     * (faster than 2x normal speed in reverse), the backspin keeps its momentum
+     * and slowly coasts out before the deck returns to its normal play speed
+     * (or comes to a halt, if the deck is stopped). Scratching stays enabled
+     * until the backspin has run out; calling scratchEnable() again catches it.
+     *
      * @param deck The deck number to use, e.g: 1
      * @param ramp  Set true to ramp the deck speed up. Set false to jump to normal play speed instantly [default = true]
      */
