@@ -338,6 +338,8 @@ declare namespace engine {
      * and slowly coasts out before the deck returns to its normal play speed
      * (or comes to a halt, if the deck is stopped). Scratching stays enabled
      * until the backspin has run out; calling scratchEnable() again catches it.
+     * This can be disabled and its run-out time adjusted in Preferences > Decks,
+     * or via the [Controls],BackspinMomentum and [Controls],BackspinMomentumTime controls.
      *
      * @param deck The deck number to use, e.g: 1
      * @param ramp  Set true to ramp the deck speed up. Set false to jump to normal play speed instantly [default = true]

@@ -29,6 +29,10 @@ constexpr double kDefaultPositionDisplayType =
 // to playermanager.cpp
 const QString kAppGroup = QStringLiteral("[App]");
 const QString kControlsGroup = QStringLiteral("[Controls]");
+const ConfigKey kConfigKeyBackspinMomentum =
+        ConfigKey(kControlsGroup, QStringLiteral("BackspinMomentum"));
+const ConfigKey kConfigKeyBackspinMomentumTime =
+        ConfigKey(kControlsGroup, QStringLiteral("BackspinMomentumTime"));
 } // namespace
 
 DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
@@ -38,6 +42,10 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
                   ConfigKey(kControlsGroup, QStringLiteral("ShowDurationRemaining")))),
           m_pControlTrackTimeFormat(std::make_unique<ControlObject>(
                   ConfigKey(kControlsGroup, QStringLiteral("TimeFormat")))),
+          m_pControlBackspinMomentum(std::make_unique<ControlObject>(
+                  kConfigKeyBackspinMomentum)),
+          m_pControlBackspinMomentumTime(std::make_unique<ControlObject>(
+                  kConfigKeyBackspinMomentumTime)),
           m_pNumDecks(make_parented<ControlProxy>(
                   kAppGroup, QStringLiteral("num_decks"), this)),
           m_pNumSamplers(make_parented<ControlProxy>(
@@ -226,6 +234,16 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             &QCheckBox::toggled,
             this,
             &DlgPrefDeck::slotCloneDeckOnLoadDoubleTapCheckbox);
+
+    // Backspin momentum when releasing a controller jog wheel
+    m_pControlBackspinMomentum->set(
+            m_pConfig->getValue(kConfigKeyBackspinMomentum, kDefaultBackspinMomentum));
+    m_pControlBackspinMomentumTime->set(m_pConfig->getValue(
+            kConfigKeyBackspinMomentumTime, kDefaultBackspinMomentumTimeSeconds));
+    connect(checkBoxBackspinMomentum,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefDeck::slotBackspinMomentumCheckbox);
 
     m_bRateDownIncreasesSpeed = m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("RateDir")), kDefaultRateDirectionInverted);
@@ -450,6 +468,10 @@ void DlgPrefDeck::slotUpdate() {
     checkBoxCloneDeckOnLoadDoubleTap->setChecked(m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("CloneDeckOnLoadDoubleTap")), true));
 
+    checkBoxBackspinMomentum->setChecked(m_pControlBackspinMomentum->toBool());
+    spinBoxBackspinMomentumTime->setValue(m_pControlBackspinMomentumTime->get());
+    slotBackspinMomentumCheckbox(checkBoxBackspinMomentum->isChecked());
+
     double rateRange = m_rateRangeControls[0]->get();
     int index = ComboBoxRateRange->findData(static_cast<int>(rateRange * 100.0));
     if (index == -1) {
@@ -535,6 +557,10 @@ void DlgPrefDeck::slotResetToDefaults() {
 
     // Clone decks by double-tapping Load button.
     checkBoxCloneDeckOnLoadDoubleTap->setChecked(kDefaultCloneDeckOnLoad);
+
+    // Backspin momentum when releasing a controller jog wheel
+    checkBoxBackspinMomentum->setChecked(kDefaultBackspinMomentum);
+    spinBoxBackspinMomentumTime->setValue(kDefaultBackspinMomentumTimeSeconds);
 
     // Mixxx cue mode
     ComboBoxCueMode->setCurrentIndex(0);
@@ -625,6 +651,11 @@ void DlgPrefDeck::slotCueModeCombobox(int index) {
 
 void DlgPrefDeck::slotCloneDeckOnLoadDoubleTapCheckbox(bool checked) {
     m_bCloneDeckOnLoadDoubleTap = checked;
+}
+
+void DlgPrefDeck::slotBackspinMomentumCheckbox(bool checked) {
+    labelBackspinMomentumTime->setEnabled(checked);
+    spinBoxBackspinMomentumTime->setEnabled(checked);
 }
 
 void DlgPrefDeck::slotSetTrackTimeDisplay(QAbstractButton* b) {
@@ -719,6 +750,13 @@ void DlgPrefDeck::slotApply() {
     m_pConfig->setValue(ConfigKey(kControlsGroup, QStringLiteral("CueRecall")), m_seekOnLoadMode);
     m_pConfig->setValue(ConfigKey(kControlsGroup, QStringLiteral("CloneDeckOnLoadDoubleTap")),
             m_bCloneDeckOnLoadDoubleTap);
+
+    const bool backspinMomentum = checkBoxBackspinMomentum->isChecked();
+    const double backspinMomentumTime = spinBoxBackspinMomentumTime->value();
+    m_pControlBackspinMomentum->set(backspinMomentum ? 1.0 : 0.0);
+    m_pControlBackspinMomentumTime->set(backspinMomentumTime);
+    m_pConfig->setValue(kConfigKeyBackspinMomentum, backspinMomentum);
+    m_pConfig->setValue(kConfigKeyBackspinMomentumTime, backspinMomentumTime);
 
     // Set rate range
     // Set the config value before setting the CO values in setRateRangeForAllDecks()

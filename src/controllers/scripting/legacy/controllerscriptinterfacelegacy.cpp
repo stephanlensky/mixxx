@@ -32,9 +32,16 @@ constexpr double kBrakeRampToRate = 0.01;
 // to the target rate. Slower reverse movements, like the back strokes of
 // regular scratches, are not affected.
 constexpr double kBackspinMomentumMinRate = -2.0;
-// Deceleration of a coasting backspin in rate units per second, i.e. a
-// backspin released at -10x normal speed takes 10 / 6 s to come to a halt.
-constexpr double kBackspinMomentumDeceleration = 6.0;
+// The backspin momentum is configured in Preferences > Decks, which publishes
+// these controls. The fallbacks match the defaults in DlgPrefDeck.
+const ConfigKey kBackspinMomentumKey =
+        ConfigKey(QStringLiteral("[Controls]"), QStringLiteral("BackspinMomentum"));
+const ConfigKey kBackspinMomentumTimeKey =
+        ConfigKey(QStringLiteral("[Controls]"), QStringLiteral("BackspinMomentumTime"));
+constexpr bool kFallbackBackspinMomentum = true;
+constexpr double kFallbackBackspinMomentumTimeSeconds = 1.7;
+// The configured run-out time refers to a backspin at this rate
+constexpr double kBackspinMomentumReferenceRate = 10.0;
 // Upper bound for the time step of the momentum integration to avoid jumps
 // when the timer was delayed, e.g. by a busy GUI thread.
 constexpr mixxx::Duration kMaxMomentumTimeStep = mixxx::Duration::fromMillis(50);
@@ -57,6 +64,7 @@ ControllerScriptInterfaceLegacy::ControllerScriptInterfaceLegacy(
     m_softStartActive.resize(kDecks);
     m_momentumActive.resize(kDecks);
     m_momentumRate.resize(kDecks);
+    m_momentumDeceleration.resize(kDecks);
     m_momentumLastUpdate.resize(kDecks);
     // Initialize arrays used for testing and pointers
     for (int i = 0; i < kDecks; ++i) {
@@ -68,6 +76,7 @@ ControllerScriptInterfaceLegacy::ControllerScriptInterfaceLegacy(
         m_softStartActive[i] = false;
         m_momentumActive[i] = false;
         m_momentumRate[i] = 0.0;
+        m_momentumDeceleration[i] = 0.0;
     }
 }
 
@@ -905,6 +914,21 @@ void ControllerScriptInterfaceLegacy::scratchProcess(int timerId) {
     }
 }
 
+double ControllerScriptInterfaceLegacy::backspinMomentumDeceleration() const {
+    const ControlObject* pEnabled = ControlObject::getControl(
+            kBackspinMomentumKey, ControlFlag::AllowMissingOrInvalid);
+    if (!(pEnabled ? pEnabled->toBool() : kFallbackBackspinMomentum)) {
+        return 0.0;
+    }
+    const ControlObject* pTime = ControlObject::getControl(
+            kBackspinMomentumTimeKey, ControlFlag::AllowMissingOrInvalid);
+    const double timeSeconds = pTime ? pTime->get() : kFallbackBackspinMomentumTimeSeconds;
+    if (!(timeSeconds > 0.0)) {
+        return 0.0;
+    }
+    return kBackspinMomentumReferenceRate / timeSeconds;
+}
+
 bool ControllerScriptInterfaceLegacy::scratchProcessMomentum(
         int deck, const QString& group) {
     if (!isTrackLoaded(group)) {
@@ -926,7 +950,7 @@ bool ControllerScriptInterfaceLegacy::scratchProcessMomentum(
     const double targetRate = isDeckPlaying(group) ? getDeckRate(group) : 0.0;
 
     double rate = m_momentumRate[deck];
-    const double step = kBackspinMomentumDeceleration * dt;
+    const double step = m_momentumDeceleration[deck] * dt;
     if (rate < targetRate) {
         rate = std::min(rate + step, targetRate);
     } else {
@@ -956,9 +980,11 @@ void ControllerScriptInterfaceLegacy::scratchDisable(int deck, bool ramp) {
     } else if (ramp && m_scratchTimers.key(deck, 0) != 0 && !m_brakeActive[deck] &&
             !m_spinbackActive[deck] && !m_softStartActive[deck]) {
         const double releaseRate = m_scratchFilters[deck]->predictedVelocity();
-        if (releaseRate < kBackspinMomentumMinRate) {
+        const double deceleration = backspinMomentumDeceleration();
+        if (releaseRate < kBackspinMomentumMinRate && deceleration > 0.0) {
             m_momentumActive[deck] = true;
             m_momentumRate[deck] = releaseRate;
+            m_momentumDeceleration[deck] = deceleration;
             m_momentumLastUpdate[deck] = mixxx::Time::elapsed();
             m_ramp[deck] = true;
             return;

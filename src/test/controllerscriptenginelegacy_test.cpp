@@ -1386,42 +1386,64 @@ TEST_F(ControllerScriptEngineLegacyTest, screenWillSentRawDataIfConfigured) {
 }
 #endif
 
-TEST_F(ControllerScriptEngineLegacyTest, scratchDisable_backspinKeepsMomentum) {
-    loadTrackSync("id3-test-data/all.mp3");
-    const ConfigKey scratch2Key("[Channel1]", "scratch2");
-    const ConfigKey scratch2EnableKey("[Channel1]", "scratch2_enable");
+class ControllerScriptEngineLegacyScratchTest : public ControllerScriptEngineLegacyTest {
+  protected:
+    const ConfigKey m_scratch2Key{"[Channel1]", "scratch2"};
+    const ConfigKey m_scratch2EnableKey{"[Channel1]", "scratch2_enable"};
 
-    EXPECT_TRUE(evaluateAndAssert(
-            "engine.scratchEnable(1, 128, 33 + 1 / 3, 1 / 8, 1 / 8 / 32, false);"));
-    EXPECT_DOUBLE_EQ(1.0, ControlObject::get(scratch2EnableKey));
-
-    // Spin the wheel backwards fast
-    for (int i = 0; i < 1000 && ControlObject::get(scratch2Key) > -4.0; ++i) {
-        EXPECT_TRUE(evaluateAndAssert("engine.scratchTick(1, -10);"));
-        mixxx::Time::addTestTime(1ms);
-        QTest::qSleep(1);
-        processEvents();
+    /// Spins the jog wheel of deck 1 backwards fast and returns the rate at
+    /// which it is released.
+    double backspin() {
+        loadTrackSync("id3-test-data/all.mp3");
+        EXPECT_TRUE(evaluateAndAssert(
+                "engine.scratchEnable(1, 128, 33 + 1 / 3, 1 / 8, 1 / 8 / 32, false);"));
+        EXPECT_DOUBLE_EQ(1.0, ControlObject::get(m_scratch2EnableKey));
+        for (int i = 0; i < 1000 && ControlObject::get(m_scratch2Key) > -4.0; ++i) {
+            EXPECT_TRUE(evaluateAndAssert("engine.scratchTick(1, -10);"));
+            mixxx::Time::addTestTime(1ms);
+            QTest::qSleep(1);
+            processEvents();
+        }
+        const double releaseRate = ControlObject::get(m_scratch2Key);
+        EXPECT_GT(-4.0, releaseRate);
+        EXPECT_TRUE(evaluateAndAssert("engine.scratchDisable(1);"));
+        return releaseRate;
     }
-    const double releaseRate = ControlObject::get(scratch2Key);
-    ASSERT_GT(-4.0, releaseRate);
+};
 
-    // Release the wheel: the backspin keeps coasting ...
-    EXPECT_TRUE(evaluateAndAssert("engine.scratchDisable(1);"));
+TEST_F(ControllerScriptEngineLegacyScratchTest, scratchDisable_backspinKeepsMomentum) {
+    const double releaseRate = backspin();
+
+    // The backspin keeps coasting after the release ...
     mixxx::Time::addTestTime(10ms);
     QTest::qSleep(2);
     processEvents();
     EXPECT_TRUE(evaluate("engine.isScratching(1)").toBool());
-    EXPECT_GT(-3.0, ControlObject::get(scratch2Key));
-    EXPECT_LT(releaseRate, ControlObject::get(scratch2Key));
+    EXPECT_GT(-3.0, ControlObject::get(m_scratch2Key));
+    EXPECT_LT(releaseRate, ControlObject::get(m_scratch2Key));
 
     // ... until it has run out, which stops scratching on the stopped deck
-    for (int i = 0; i < 2000 && ControlObject::get(scratch2EnableKey) > 0; ++i) {
+    for (int i = 0; i < 2000 && ControlObject::get(m_scratch2EnableKey) > 0; ++i) {
         mixxx::Time::addTestTime(20ms);
         QTest::qSleep(1);
         processEvents();
     }
-    EXPECT_DOUBLE_EQ(0.0, ControlObject::get(scratch2EnableKey));
-    EXPECT_DOUBLE_EQ(0.0, ControlObject::get(scratch2Key));
+    EXPECT_DOUBLE_EQ(0.0, ControlObject::get(m_scratch2EnableKey));
+    EXPECT_DOUBLE_EQ(0.0, ControlObject::get(m_scratch2Key));
+}
+
+TEST_F(ControllerScriptEngineLegacyScratchTest, scratchDisable_backspinMomentumDisabled) {
+    ControlObject backspinMomentum(ConfigKey("[Controls]", "BackspinMomentum"));
+    backspinMomentum.set(0.0);
+    backspin();
+
+    // Without momentum the deck ramps down by the scratch filter alone. The
+    // test time is frozen, so a coasting backspin would never run out.
+    for (int i = 0; i < 1000 && ControlObject::get(m_scratch2EnableKey) > 0; ++i) {
+        QTest::qSleep(1);
+        processEvents();
+    }
+    EXPECT_DOUBLE_EQ(0.0, ControlObject::get(m_scratch2EnableKey));
 }
 
 TEST_F(ControllerScriptEngineLegacyTimerTest, beginTimer_repeatedTimer) {

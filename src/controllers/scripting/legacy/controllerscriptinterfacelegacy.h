@@ -147,6 +147,7 @@ class ControllerScriptInterfaceLegacy : public QObject {
     /// Backspin momentum after releasing the jog wheel, see scratchDisable()
     QVarLengthArray<bool> m_momentumActive;
     QVarLengthArray<double> m_momentumRate;
+    QVarLengthArray<double> m_momentumDeceleration;
     QVarLengthArray<mixxx::Duration> m_momentumLastUpdate;
     QVarLengthArray<AlphaBetaFilter*> m_scratchFilters;
     QHash<int, int> m_scratchTimers;
@@ -155,6 +156,9 @@ class ControllerScriptInterfaceLegacy : public QObject {
     /// Lets a backspin coast after the jog wheel was released.
     /// Returns true when the momentum run-out has finished.
     bool scratchProcessMomentum(int deck, const QString& group);
+    /// Deceleration of a released backspin in rate units per second as
+    /// configured in the preferences, or 0 if backspin momentum is disabled.
+    double backspinMomentumDeceleration() const;
     void stopScratchTimer(int timerId);
     bool isDeckPlaying(const QString& group);
     void stopDeck(const QString& group);
