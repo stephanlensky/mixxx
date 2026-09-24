@@ -644,6 +644,75 @@ You can always drag-and-drop tracks on screen to clone a deck.</string>
     </widget>
    </item>
    <item row="2" column="0">
+    <widget class="QGroupBox" name="groupBoxJogWheelOptions">
+     <property name="title">
+      <string>Jog wheel</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayoutJogWheelOptions">
+      <item row="0" column="0" colspan="3">
+       <widget class="QCheckBox" name="checkBoxBackspinMomentum">
+        <property name="toolTip">
+         <string>When a controller jog wheel is released during a fast backspin, the track keeps spinning backwards and slows down gradually instead of returning to normal speed immediately.
+This allows for backspin transitions.</string>
+        </property>
+        <property name="text">
+         <string>Keep backspin momentum when releasing the jog wheel</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelBackspinMomentumTime">
+        <property name="text">
+         <string>Backspin run-out time</string>
+        </property>
+        <property name="buddy">
+         <cstring>spinBoxBackspinMomentumTime</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="spinBoxBackspinMomentumTime">
+        <property name="toolTip">
+         <string>Time it takes for a backspin at 10x normal speed to come to a halt after releasing the jog wheel.
+Faster backspins run out longer, slower ones shorter.</string>
+        </property>
+        <property name="suffix">
+         <string> s</string>
+        </property>
+        <property name="decimals">
+         <number>1</number>
+        </property>
+        <property name="minimum">
+         <double>0.2</double>
+        </property>
+        <property name="maximum">
+         <double>10.0</double>
+        </property>
+        <property name="singleStep">
+         <double>0.1</double>
+        </property>
+        <property name="value">
+         <double>1.7</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <spacer name="horizontalSpacerJogWheel">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="0">
     <spacer name="verticalSpacer2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -685,6 +754,8 @@ You can always drag-and-drop tracks on screen to clone a deck.</string>
   <tabstop>spinBoxTemporaryRateCoarse</tabstop>
   <tabstop>spinBoxPermanentRateFine</tabstop>
   <tabstop>spinBoxPermanentRateCoarse</tabstop>
+  <tabstop>checkBoxBackspinMomentum</tabstop>
+  <tabstop>spinBoxBackspinMomentumTime</tabstop>
  </tabstops>
  <resources/>
  <buttongroups>

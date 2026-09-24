@@ -17,6 +17,10 @@ class QWidget;
 
 namespace {
 constexpr bool kDefaultCloneDeckOnLoad = true;
+// Defaults for the jog wheel backspin momentum, see
+// ControllerScriptInterfaceLegacy::scratchDisable()
+constexpr bool kDefaultBackspinMomentum = true;
+constexpr double kDefaultBackspinMomentumTimeSeconds = 1.7;
 } // namespace
 
 namespace {
@@ -63,6 +67,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg  {
 
     void slotUpdateSpeedAutoReset(bool);
     void slotUpdatePitchAutoReset(bool);
+    void slotBackspinMomentumCheckbox(bool);
 
   private:
     // Because the CueDefault list is out of order, we have to set the combo
@@ -78,6 +83,8 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg  {
 
     const std::unique_ptr<ControlObject> m_pControlTrackTimeDisplay;
     const std::unique_ptr<ControlObject> m_pControlTrackTimeFormat;
+    const std::unique_ptr<ControlObject> m_pControlBackspinMomentum;
+    const std::unique_ptr<ControlObject> m_pControlBackspinMomentumTime;
 
     const parented_ptr<ControlProxy> m_pNumDecks;
     const parented_ptr<ControlProxy> m_pNumSamplers;
