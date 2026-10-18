@@ -99,6 +99,13 @@ class EffectProcessor {
             const EffectEnableState enableState,
             const GroupFeatureState& groupFeatures) = 0;
 
+    /// Called from the audio thread to mix the dry signal into the output of an addDryToWet effect.
+    virtual void addDry(const ChannelHandle& inputHandle,
+            const ChannelHandle& outputHandle,
+            const CSAMPLE* pDry,
+            CSAMPLE* pOutput,
+            const mixxx::EngineParameters& engineParameters) = 0;
+
     /// This method is used for obtaining the delay of the output buffer
     /// compared to the input buffer based on the internal effect processing.
     /// The method returns the number of frames by which the dry signal
@@ -142,6 +149,15 @@ class EffectProcessorImpl : public EffectProcessor {
             const EffectEnableState enableState,
             const GroupFeatureState& groupFeatures) = 0;
 
+    /// Effects with a dry level parameter override this to scale the dry signal.
+    virtual void addDryChannel(EffectSpecificState* channelState,
+            const CSAMPLE* pDry,
+            CSAMPLE* pOutput,
+            const mixxx::EngineParameters& engineParameters) {
+        Q_UNUSED(channelState);
+        SampleUtil::add(pOutput, pDry, engineParameters.samplesPerBuffer());
+    }
+
     /// By default, the group delay for every effect is zero. The effect implementation
     /// can override this method and set actual number of frames for the effect delay.
     virtual SINT getGroupDelayFrames() override {
@@ -155,13 +171,7 @@ class EffectProcessorImpl : public EffectProcessor {
             const mixxx::EngineParameters& engineParameters,
             const EffectEnableState enableState,
             const GroupFeatureState& groupFeatures) final {
-        EffectSpecificState* pState = nullptr;
-        if (inputHandle < m_channelStateMatrix.size()) {
-            const auto& outputChannelStates = m_channelStateMatrix[inputHandle];
-            if (outputHandle < outputChannelStates.size()) {
-                pState = outputChannelStates[outputHandle].get();
-            }
-        }
+        EffectSpecificState* pState = getState(inputHandle, outputHandle);
         VERIFY_OR_DEBUG_ASSERT(pState != nullptr) {
             if (kEffectDebugOutput) {
                 qWarning() << "EffectProcessorImpl::process could not retrieve"
@@ -175,6 +185,19 @@ class EffectProcessorImpl : public EffectProcessor {
             return;
         }
         processChannel(pState, pInput, pOutput, engineParameters, enableState, groupFeatures);
+    }
+
+    void addDry(const ChannelHandle& inputHandle,
+            const ChannelHandle& outputHandle,
+            const CSAMPLE* pDry,
+            CSAMPLE* pOutput,
+            const mixxx::EngineParameters& engineParameters) final {
+        EffectSpecificState* pState = getState(inputHandle, outputHandle);
+        if (pState == nullptr) {
+            SampleUtil::add(pOutput, pDry, engineParameters.samplesPerBuffer());
+            return;
+        }
+        addDryChannel(pState, pDry, pOutput, engineParameters);
     }
 
     void initialize(const QSet<ChannelHandleAndGroup>& activeInputChannels,
@@ -252,6 +275,18 @@ class EffectProcessorImpl : public EffectProcessor {
     };
 
   private:
+    EffectSpecificState* getState(const ChannelHandle& inputHandle,
+            const ChannelHandle& outputHandle) {
+        if (!(inputHandle < m_channelStateMatrix.size())) {
+            return nullptr;
+        }
+        const auto& outputChannelStates = m_channelStateMatrix[inputHandle];
+        if (!(outputHandle < outputChannelStates.size())) {
+            return nullptr;
+        }
+        return outputChannelStates[outputHandle].get();
+    }
+
     QSet<ChannelHandleAndGroup> m_registeredOutputChannels;
     ChannelHandleMap<unique_ptr_vector<EffectSpecificState>> m_channelStateMatrix;
 };

@@ -100,7 +100,7 @@ TEST_F(QmlEffectsProxyTest, UnitPresetStateAndLoading) {
 }
 
 TEST_F(QmlEffectsProxyTest, SlotEffectAndParameterVisibility) {
-    constexpr int kExpectedParameterCount = 6;
+    constexpr int kExpectedParameterCount = 7;
     constexpr int kParameter1Index = 0;
     constexpr int kParameter2Index = 1;
     constexpr int kParameter3Index = 2;

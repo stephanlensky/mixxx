@@ -225,3 +225,15 @@ bool EngineEffect::process(const ChannelHandle& inputHandle,
 
     return processingOccured;
 }
+
+void EngineEffect::addDry(const ChannelHandle& inputHandle,
+        const ChannelHandle& outputHandle,
+        const CSAMPLE* pDry,
+        CSAMPLE* pOutput,
+        const std::size_t numSamples,
+        const mixxx::audio::SampleRate sampleRate) {
+    const mixxx::EngineParameters engineParameters(
+            sampleRate,
+            numSamples / mixxx::kEngineChannelOutputCount);
+    m_pProcessor->addDry(inputHandle, outputHandle, pDry, pOutput, engineParameters);
+}

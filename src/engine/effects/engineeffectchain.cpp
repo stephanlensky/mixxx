@@ -232,6 +232,7 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
         CSAMPLE* pIntermediateOutput;
         SINT effectChainGroupDelayFrames = 0;
         bool firstAddDryToWetEffectProcessed = false;
+        EngineEffect* pSkippedDryEffect = nullptr;
 
         for (EngineEffect* pEffect : std::as_const(m_effects)) {
             if (pEffect != nullptr) {
@@ -264,10 +265,15 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
                         bool skipAddingDry = !firstAddDryToWetEffectProcessed &&
                                 m_mixMode == EffectChainMixMode::DryPlusWet;
 
-                        if (!skipAddingDry) {
-                            for (SINT i = 0; i <= static_cast<SINT>(numSamples); ++i) {
-                                pIntermediateOutput[i] += pIntermediateInput[i];
-                            }
+                        if (skipAddingDry) {
+                            pSkippedDryEffect = pEffect;
+                        } else {
+                            pEffect->addDry(inputHandle,
+                                    outputHandle,
+                                    pIntermediateInput,
+                                    pIntermediateOutput,
+                                    numSamples,
+                                    sampleRate);
                         }
 
                         firstAddDryToWetEffectProcessed = true;
@@ -299,6 +305,19 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
                         lastCallbackMixKnob,
                         currentMixKnob,
                         static_cast<int>(numSamples));
+            } else if (pSkippedDryEffect) {
+                // Dry+Wet mode: output = (input * dry level) + (wet * mix knob)
+                SampleUtil::copyWithRampingGain(pOut,
+                        pIntermediateInput,
+                        lastCallbackMixKnob,
+                        currentMixKnob,
+                        static_cast<int>(numSamples));
+                pSkippedDryEffect->addDry(inputHandle,
+                        outputHandle,
+                        pIn,
+                        pOut,
+                        numSamples,
+                        sampleRate);
             } else {
                 // Dry+Wet mode: output = input + (wet * mix knob)
                 SampleUtil::copy2WithRampingGain(

@@ -105,6 +105,16 @@ EffectManifestPointer EchoEffect::getManifest() {
     triplet->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     triplet->setRange(0, 0, 1);
 
+    EffectManifestParameterPointer dry = pManifest->addParameter();
+    dry->setId("dry_level");
+    dry->setName(QObject::tr("Dry"));
+    dry->setShortName(QObject::tr("Dry"));
+    dry->setDescription(QObject::tr(
+            "How much of the input signal to let through next to the echoes"));
+    dry->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    dry->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+    dry->setRange(0.0, 1.0, 1.0);
+
     return pManifest;
 }
 
@@ -116,6 +126,7 @@ void EchoEffect::loadEngineEffectParameters(
     m_pPingPongParameter = parameters.value("pingpong_amount");
     m_pQuantizeParameter = parameters.value("quantize");
     m_pTripletParameter = parameters.value("triplet");
+    m_pDryParameter = parameters.value("dry_level");
 }
 
 void EchoEffect::processChannel(
@@ -247,10 +258,25 @@ void EchoEffect::processChannel(
         SampleUtil::applyRampingGain(pOutput, 1.0, 0.0, engineParameters.samplesPerBuffer());
         pGroupState->delay_buf.clear();
         pGroupState->prev_send = 0;
+        pGroupState->dry = 1.0f;
     } else {
         pGroupState->prev_send = send_current;
+        pGroupState->dry = static_cast<CSAMPLE_GAIN>(m_pDryParameter->value());
     }
 
     pGroupState->prev_feedback = feedback_current;
     pGroupState->prev_delay_samples = delay_samples;
+}
+
+void EchoEffect::addDryChannel(
+        EchoGroupState* pGroupState,
+        const CSAMPLE* pDry,
+        CSAMPLE* pOutput,
+        const mixxx::EngineParameters& engineParameters) {
+    SampleUtil::addWithRampingGain(pOutput,
+            pDry,
+            pGroupState->prev_dry,
+            pGroupState->dry,
+            engineParameters.samplesPerBuffer());
+    pGroupState->prev_dry = pGroupState->dry;
 }

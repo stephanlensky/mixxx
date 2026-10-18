@@ -14,7 +14,9 @@ class EchoGroupState : public EffectState {
     static constexpr int kMaxDelaySeconds = 3;
 
     EchoGroupState(const mixxx::EngineParameters& engineParameters)
-            : EffectState(engineParameters) {
+            : EffectState(engineParameters),
+              prev_dry(1.0f),
+              dry(1.0f) {
         audioParametersChanged(engineParameters);
         clear();
     }
@@ -41,6 +43,8 @@ class EchoGroupState : public EffectState {
     int prev_delay_samples;
     int write_position;
     int ping_pong;
+    CSAMPLE_GAIN prev_dry;
+    CSAMPLE_GAIN dry;
 };
 
 class EchoEffect : public EffectProcessorImpl<EchoGroupState> {
@@ -62,6 +66,12 @@ class EchoEffect : public EffectProcessorImpl<EchoGroupState> {
             const EffectEnableState enableState,
             const GroupFeatureState& groupFeatures) override;
 
+    void addDryChannel(
+            EchoGroupState* pState,
+            const CSAMPLE* pDry,
+            CSAMPLE* pOutput,
+            const mixxx::EngineParameters& engineParameters) override;
+
   private:
     QString debugString() const {
         return getId();
@@ -73,6 +83,7 @@ class EchoEffect : public EffectProcessorImpl<EchoGroupState> {
     EngineEffectParameterPointer m_pPingPongParameter;
     EngineEffectParameterPointer m_pQuantizeParameter;
     EngineEffectParameterPointer m_pTripletParameter;
+    EngineEffectParameterPointer m_pDryParameter;
 
     DISALLOW_COPY_AND_ASSIGN(EchoEffect);
 };

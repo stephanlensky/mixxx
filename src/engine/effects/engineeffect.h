@@ -47,6 +47,14 @@ class EngineEffect final : public EffectsRequestHandler {
             const EffectEnableState chainEnableState,
             const GroupFeatureState& groupFeatures);
 
+    /// Called in audio thread
+    void addDry(const ChannelHandle& inputHandle,
+            const ChannelHandle& outputHandle,
+            const CSAMPLE* pDry,
+            CSAMPLE* pOutput,
+            const std::size_t numSamples,
+            const mixxx::audio::SampleRate sampleRate);
+
     const EffectManifestPointer getManifest() const {
         return m_pManifest;
     }

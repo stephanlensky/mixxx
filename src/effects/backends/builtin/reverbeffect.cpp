@@ -66,6 +66,16 @@ EffectManifestPointer ReverbEffect::getManifest() {
     send->setDefaultLinkInversion(EffectManifestParameter::LinkInversion::NotInverted);
     send->setRange(0, 0, 1);
 
+    EffectManifestParameterPointer dry = pManifest->addParameter();
+    dry->setId("dry_level");
+    dry->setName(QObject::tr("Dry"));
+    dry->setShortName(QObject::tr("Dry"));
+    dry->setDescription(QObject::tr(
+            "How much of the input signal to let through next to the reverberation"));
+    dry->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    dry->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+    dry->setRange(0.0, 1.0, 1.0);
+
     return pManifest;
 }
 
@@ -75,6 +85,7 @@ void ReverbEffect::loadEngineEffectParameters(
     m_pBandWidthParameter = parameters.value("bandwidth");
     m_pDampingParameter = parameters.value("damping");
     m_pSendParameter = parameters.value("send_amount");
+    m_pDryParameter = parameters.value("dry_level");
 }
 
 void ReverbEffect::processChannel(
@@ -117,7 +128,22 @@ void ReverbEffect::processChannel(
     if (enableState == EffectEnableState::Disabling) {
         SampleUtil::applyRampingGain(pOutput, 1.0, 0.0, engineParameters.samplesPerBuffer());
         pState->sendPrevious = 0;
+        pState->dryCurrent = 1;
     } else {
         pState->sendPrevious = sendCurrent;
+        pState->dryCurrent = static_cast<float>(m_pDryParameter->value());
     }
+}
+
+void ReverbEffect::addDryChannel(
+        ReverbGroupState* pState,
+        const CSAMPLE* pDry,
+        CSAMPLE* pOutput,
+        const mixxx::EngineParameters& engineParameters) {
+    SampleUtil::addWithRampingGain(pOutput,
+            pDry,
+            pState->dryPrevious,
+            pState->dryCurrent,
+            engineParameters.samplesPerBuffer());
+    pState->dryPrevious = pState->dryCurrent;
 }
