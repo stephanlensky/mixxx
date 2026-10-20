@@ -6,12 +6,14 @@
 #include "effects/chains/equalizereffectchain.h"
 #include "effects/chains/outputeffectchain.h"
 #include "effects/chains/quickeffectchain.h"
+#include "effects/chains/releaseeffectchain.h"
 #include "effects/chains/standardeffectchain.h"
 #include "effects/effectslot.h"
 #include "effects/effectsmessenger.h"
 #include "effects/presets/effectchainpreset.h"
 #include "effects/presets/effectpresetmanager.h"
 #include "effects/presets/effectxmlelements.h"
+#include "effects/releasefxsettings.h"
 #include "effects/visibleeffectslist.h"
 #include "engine/effects/engineeffectsmanager.h"
 #include "util/assert.h"
@@ -47,6 +49,8 @@ EffectsManager::EffectsManager(
             new EffectChainPresetManager(pConfig, m_pBackendManager));
 
     m_pVisibleEffectsList = VisibleEffectsListPointer(new VisibleEffectsList());
+
+    m_pReleaseFxSettings = std::make_unique<ReleaseFxSettings>(pConfig);
 }
 
 EffectsManager::~EffectsManager() {
@@ -61,6 +65,7 @@ EffectsManager::~EffectsManager() {
     m_equalizerEffectChains.clear();
     m_quickStemEffectChains.clear();
     m_quickEffectChains.clear();
+    m_releaseEffectChains.clear();
     m_standardEffectChains.clear();
     m_outputEffectChain.clear();
     m_effectChainSlotsByGroup.clear();
@@ -138,6 +143,7 @@ EffectChainPointer EffectsManager::getStandardEffectChain(int unitNumber) const 
 void EffectsManager::addDeck(const ChannelHandleAndGroup& deckHandleGroup) {
     addEqualizerEffectChain(deckHandleGroup);
     addQuickEffectChain(deckHandleGroup);
+    addReleaseEffectChain(deckHandleGroup);
     // If a deck is added after setup() was run we need to read effects.xml
     // again to initialize its QuickEffect chain, either with defaults or the
     // previous state.
@@ -200,6 +206,18 @@ void EffectsManager::addQuickEffectChain(const ChannelHandleAndGroup& deckHandle
             new QuickEffectChain(deckHandleGroup, this, m_pMessenger));
 
     m_quickEffectChains.insert(deckHandleGroup.name(), pChainSlot);
+    m_effectChainSlotsByGroup.insert(pChainSlot->group(), pChainSlot);
+}
+
+void EffectsManager::addReleaseEffectChain(const ChannelHandleAndGroup& deckHandleGroup) {
+    VERIFY_OR_DEBUG_ASSERT(!m_releaseEffectChains.contains(deckHandleGroup.name())) {
+        return;
+    }
+
+    auto pChainSlot = ReleaseEffectChainPointer(
+            new ReleaseEffectChain(deckHandleGroup, this, m_pMessenger, m_pReleaseFxSettings.get()));
+
+    m_releaseEffectChains.insert(deckHandleGroup.name(), pChainSlot);
     m_effectChainSlotsByGroup.insert(pChainSlot->group(), pChainSlot);
 }
 

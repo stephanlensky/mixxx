@@ -18,6 +18,8 @@ void decrementRing(int* pIndex, int decrement, int length) {
     *pIndex = (*pIndex + length - decrement) % length;
 }
 
+constexpr double kReleaseSendLevel = 0.7;
+
 } // anonymous namespace
 
 // static
@@ -30,6 +32,7 @@ EffectManifestPointer EchoEffect::getManifest() {
     EffectManifestPointer pManifest(new EffectManifest());
 
     pManifest->setAddDryToWet(true);
+    pManifest->setHandlesRelease(true);
     pManifest->setEffectRampsFromDry(true);
 
     pManifest->setId(getId());
@@ -138,7 +141,9 @@ void EchoEffect::processChannel(
         const GroupFeatureState& groupFeatures) {
     // The minimum of the parameter is zero so the exact center of the knob is 1 beat.
     double period = m_pDelayParameter->value();
-    const auto send_current = static_cast<CSAMPLE_GAIN>(m_pSendParameter->value());
+    const auto send_current = groupFeatures.release
+            ? groupFeatures.release->sendGain(kReleaseSendLevel)
+            : static_cast<CSAMPLE_GAIN>(m_pSendParameter->value());
     const auto feedback_current = static_cast<CSAMPLE_GAIN>(m_pFeedbackParameter->value());
     const auto pingpong_frac = static_cast<CSAMPLE_GAIN>(m_pPingPongParameter->value());
 
@@ -261,7 +266,9 @@ void EchoEffect::processChannel(
         pGroupState->dry = 1.0f;
     } else {
         pGroupState->prev_send = send_current;
-        pGroupState->dry = static_cast<CSAMPLE_GAIN>(m_pDryParameter->value());
+        pGroupState->dry = groupFeatures.release
+                ? groupFeatures.release->dryGain()
+                : static_cast<CSAMPLE_GAIN>(m_pDryParameter->value());
     }
 
     pGroupState->prev_feedback = feedback_current;

@@ -12,6 +12,7 @@
 #include "util/class.h"
 
 class EngineEffectsManager;
+class ReleaseFxSettings;
 
 /// EffectsManager initializes and shuts down the effects system. It creates and
 /// destroys a fixed set of StandardEffectChains on Mixxx startup/shutdown
@@ -57,6 +58,9 @@ class EffectsManager {
     const EffectChainPresetManagerPointer getChainPresetManager() const {
         return m_pChainPresetManager;
     }
+    ReleaseFxSettings* getReleaseFxSettings() const {
+        return m_pReleaseFxSettings.get();
+    }
     const EffectPresetManagerPointer getEffectPresetManager() const {
         return m_pEffectPresetManager;
     }
@@ -87,6 +91,7 @@ class EffectsManager {
 
     void addEqualizerEffectChain(const ChannelHandleAndGroup& deckHandleGroup);
     void addQuickEffectChain(const ChannelHandleAndGroup& deckHandleGroup);
+    void addReleaseEffectChain(const ChannelHandleAndGroup& deckHandleGroup);
 
     void readEffectsXml();
     void readEffectsXmlSingleDeck(const QString& deckGroup);
@@ -104,9 +109,11 @@ class EffectsManager {
     QHash<QString, EqualizerEffectChainPointer> m_equalizerEffectChains;
     QHash<QString, QuickEffectChainPointer> m_quickEffectChains;
     QHash<QString, QuickEffectChainPointer> m_quickStemEffectChains;
+    QHash<QString, ReleaseEffectChainPointer> m_releaseEffectChains;
 
     EffectsBackendManagerPointer m_pBackendManager;
     std::shared_ptr<ChannelHandleFactory> m_pChannelHandleFactory;
+    std::unique_ptr<ReleaseFxSettings> m_pReleaseFxSettings;
 
     std::unique_ptr<EngineEffectsManager> m_pEngineEffectsManager;
     EffectsMessengerPointer m_pMessenger;

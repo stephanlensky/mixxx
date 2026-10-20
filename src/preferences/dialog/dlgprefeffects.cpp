@@ -8,6 +8,7 @@
 #include "effects/effectsmanager.h"
 #include "effects/presets/effectchainpreset.h"
 #include "effects/presets/effectpreset.h"
+#include "effects/releasefxsettings.h"
 #include "effects/visibleeffectslist.h"
 #include "moc_dlgprefeffects.cpp"
 #include "preferences/effectchainpresetlistmodel.h"
@@ -24,8 +25,10 @@ DlgPrefEffects::DlgPrefEffects(QWidget* pParent,
           m_pConfig(pConfig),
           m_pVisibleEffectsList(pEffectsManager->getVisibleEffectsList()),
           m_pChainPresetManager(pEffectsManager->getChainPresetManager()),
-          m_pBackendManager(pEffectsManager->getBackendManager()) {
+          m_pBackendManager(pEffectsManager->getBackendManager()),
+          m_pReleaseFxSettings(pEffectsManager->getReleaseFxSettings()) {
     setupUi(this);
+    setupReleaseFxSlots();
 
     m_pVisibleEffectsModel = make_parented<EffectManifestTableModel>(
             visibleEffectsTableView, m_pBackendManager);
@@ -136,6 +139,102 @@ void DlgPrefEffects::slotUpdate() {
             ConfigKey("[Effects]", "AdoptMetaknobValue"), true);
     radioButtonKeepMetaknobPosition->setChecked(effectAdoptMetaknobValue);
     radioButtonMetaknobLoadDefault->setChecked(!effectAdoptMetaknobValue);
+
+    loadReleaseFxSettings();
+}
+
+void DlgPrefEffects::setupReleaseFxSlots() {
+    for (int slotIndex = 0; slotIndex < kNumReleaseFxSlots; ++slotIndex) {
+        auto* pSlotGroupBox = new QGroupBox(tr("Slot %1").arg(slotIndex + 1), groupReleaseFx);
+        auto* pLayout = new QFormLayout(pSlotGroupBox);
+        ReleaseFxSlotWidgets widgets{pLayout,
+                new QComboBox(pSlotGroupBox),
+                new QSpinBox(pSlotGroupBox),
+                new QDoubleSpinBox(pSlotGroupBox),
+                new QSpinBox(pSlotGroupBox)};
+        widgets.pBeatsSpinBox->setRange(1, 32);
+        widgets.pBeatsSpinBox->setSuffix(tr(" beats"));
+        widgets.pTailSecondsSpinBox->setRange(0, 30);
+        widgets.pTailSecondsSpinBox->setDecimals(1);
+        widgets.pTailSecondsSpinBox->setSuffix(tr(" s"));
+        widgets.pSweepSpinBox->setRange(-1, 100);
+        widgets.pSweepSpinBox->setSpecialValueText(tr("No sweep"));
+        widgets.pSweepSpinBox->setPrefix(tr("To "));
+        widgets.pSweepSpinBox->setSuffix(QStringLiteral(" %"));
+
+        pLayout->addRow(tr("Effect"), widgets.pEffectComboBox);
+        pLayout->addRow(tr("Length"), widgets.pBeatsSpinBox);
+        pLayout->addRow(tr("Tail"), widgets.pTailSecondsSpinBox);
+        pLayout->addRow(tr("Super knob sweep"), widgets.pSweepSpinBox);
+        verticalLayoutReleaseFx->addWidget(pSlotGroupBox);
+        m_releaseFxSlotWidgets.append(widgets);
+
+        connect(widgets.pEffectComboBox,
+                &QComboBox::currentIndexChanged,
+                this,
+                [this, slotIndex]() {
+                    updateReleaseFxSlotWidgets(slotIndex);
+                });
+    }
+}
+
+void DlgPrefEffects::updateReleaseFxSlotWidgets(int slotIndex) {
+    const ReleaseFxSlotWidgets& widgets = m_releaseFxSlotWidgets[slotIndex];
+    const bool isChain = static_cast<ReleaseFxMode>(
+                                 widgets.pEffectComboBox->currentData().toInt()) ==
+            ReleaseFxMode::Chain;
+    widgets.pLayout->setRowVisible(widgets.pTailSecondsSpinBox, isChain);
+    widgets.pLayout->setRowVisible(widgets.pSweepSpinBox, isChain);
+}
+
+void DlgPrefEffects::loadReleaseFxSettings() {
+    const QList<EffectChainPresetPointer> presets = m_pChainPresetManager->getPresetsSorted();
+    for (int slotIndex = 0; slotIndex < kNumReleaseFxSlots; ++slotIndex) {
+        const ReleaseFxSettings::Slot slot = m_pReleaseFxSettings->getSlot(slotIndex + 1);
+        const ReleaseFxSlotWidgets& widgets = m_releaseFxSlotWidgets[slotIndex];
+        QComboBox* pComboBox = widgets.pEffectComboBox;
+        pComboBox->clear();
+        pComboBox->addItem(tr("Backspin"), static_cast<int>(ReleaseFxMode::Backspin));
+        pComboBox->addItem(tr("Brake"), static_cast<int>(ReleaseFxMode::Brake));
+        pComboBox->insertSeparator(pComboBox->count());
+        for (const auto& pPreset : presets) {
+            pComboBox->addItem(pPreset->name(), static_cast<int>(ReleaseFxMode::Chain));
+        }
+
+        if (slot.mode == ReleaseFxMode::Chain) {
+            if (pComboBox->findText(slot.presetName) == -1) {
+                pComboBox->addItem(slot.presetName, static_cast<int>(ReleaseFxMode::Chain));
+            }
+            pComboBox->setCurrentText(slot.presetName);
+        } else {
+            pComboBox->setCurrentIndex(pComboBox->findData(static_cast<int>(slot.mode)));
+        }
+
+        widgets.pBeatsSpinBox->setValue(static_cast<int>(slot.beats));
+        widgets.pTailSecondsSpinBox->setValue(slot.tailSeconds);
+        widgets.pSweepSpinBox->setValue(slot.superEnd == ReleaseFxSettings::kNoSuperSweep
+                        ? -1
+                        : static_cast<int>(std::round(slot.superEnd * 100)));
+        updateReleaseFxSlotWidgets(slotIndex);
+    }
+}
+
+void DlgPrefEffects::saveReleaseFxSettings() {
+    for (int slotIndex = 0; slotIndex < kNumReleaseFxSlots; ++slotIndex) {
+        const ReleaseFxSlotWidgets& widgets = m_releaseFxSlotWidgets[slotIndex];
+        const auto mode = static_cast<ReleaseFxMode>(
+                widgets.pEffectComboBox->currentData().toInt());
+        const int sweepPercent = widgets.pSweepSpinBox->value();
+        m_pReleaseFxSettings->setSlot(slotIndex + 1,
+                ReleaseFxSettings::Slot{mode,
+                        mode == ReleaseFxMode::Chain
+                                ? widgets.pEffectComboBox->currentText()
+                                : QString(),
+                        sweepPercent < 0 ? ReleaseFxSettings::kNoSuperSweep
+                                         : sweepPercent / 100.0,
+                        static_cast<double>(widgets.pBeatsSpinBox->value()),
+                        widgets.pTailSecondsSpinBox->value()});
+    }
 }
 
 void DlgPrefEffects::slotApply() {
@@ -144,6 +243,8 @@ void DlgPrefEffects::slotApply() {
 
     m_pConfig->set(ConfigKey("[Effects]", "AdoptMetaknobValue"),
             ConfigValue(radioButtonKeepMetaknobPosition->isChecked()));
+
+    saveReleaseFxSettings();
 }
 
 void DlgPrefEffects::saveChainPresetLists() {
@@ -157,6 +258,7 @@ void DlgPrefEffects::saveChainPresetLists() {
 void DlgPrefEffects::slotResetToDefaults() {
     radioButtonKeepMetaknobPosition->setChecked(true);
     m_pChainPresetManager->resetToDefaults();
+    m_pReleaseFxSettings->resetToDefaults();
 
     slotUpdate();
 }

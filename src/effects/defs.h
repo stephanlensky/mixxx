@@ -115,3 +115,6 @@ typedef QSharedPointer<OutputEffectChain> OutputEffectChainPointer;
 
 class QuickEffectChain;
 typedef QSharedPointer<QuickEffectChain> QuickEffectChainPointer;
+
+class ReleaseEffectChain;
+typedef QSharedPointer<ReleaseEffectChain> ReleaseEffectChainPointer;

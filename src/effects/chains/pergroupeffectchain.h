@@ -12,5 +12,6 @@ class PerGroupEffectChain : public EffectChain {
             const QString& chainSlotGroup,
             SignalProcessingStage stage,
             EffectsManager* pEffectsManager,
-            EffectsMessengerPointer pEffectsMessenger);
+            EffectsMessengerPointer pEffectsMessenger,
+            bool usesReleaseFeature = false);
 };

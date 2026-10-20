@@ -1,5 +1,10 @@
 #pragma once
 
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QSpinBox>
+
 #include "effects/defs.h"
 #include "preferences/dialog/dlgpreferencepage.h"
 #include "preferences/dialog/ui_dlgprefeffectsdlg.h"
@@ -8,6 +13,7 @@
 
 class EffectsManager;
 class EffectManifestTableModel;
+class ReleaseFxSettings;
 
 class DlgPrefEffects : public DlgPreferencePage, public Ui::DlgPrefEffectsDlg {
     Q_OBJECT
@@ -40,6 +46,10 @@ class DlgPrefEffects : public DlgPreferencePage, public Ui::DlgPrefEffectsDlg {
     void updateHideUnhideButtons(const QModelIndex& selected = QModelIndex());
     void loadChainPresetLists();
     void saveChainPresetLists();
+    void setupReleaseFxSlots();
+    void loadReleaseFxSettings();
+    void saveReleaseFxSettings();
+    void updateReleaseFxSlotWidgets(int slotIndex);
 
     /// Handles FocusIn and KeyPress events in chain preset lists
     bool eventFilter(QObject* pObj, QEvent* pEvent) override;
@@ -54,6 +64,15 @@ class DlgPrefEffects : public DlgPreferencePage, public Ui::DlgPrefEffectsDlg {
     VisibleEffectsListPointer m_pVisibleEffectsList;
     EffectChainPresetManagerPointer m_pChainPresetManager;
     EffectsBackendManagerPointer m_pBackendManager;
+    ReleaseFxSettings* m_pReleaseFxSettings;
+    struct ReleaseFxSlotWidgets {
+        QFormLayout* pLayout;
+        QComboBox* pEffectComboBox;
+        QSpinBox* pBeatsSpinBox;
+        QDoubleSpinBox* pTailSecondsSpinBox;
+        QSpinBox* pSweepSpinBox;
+    };
+    QList<ReleaseFxSlotWidgets> m_releaseFxSlotWidgets;
     parented_ptr<EffectManifestTableModel> m_pVisibleEffectsModel;
     parented_ptr<EffectManifestTableModel> m_pHiddenEffectsModel;
 };

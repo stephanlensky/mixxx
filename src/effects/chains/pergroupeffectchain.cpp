@@ -10,11 +10,13 @@ PerGroupEffectChain::PerGroupEffectChain(
         const QString& chainSlotGroup,
         SignalProcessingStage stage,
         EffectsManager* pEffectsManager,
-        EffectsMessengerPointer pEffectsMessenger)
+        EffectsMessengerPointer pEffectsMessenger,
+        bool usesReleaseFeature)
         : EffectChain(chainSlotGroup,
                   pEffectsManager,
                   pEffectsMessenger,
-                  stage) {
+                  stage,
+                  usesReleaseFeature) {
     // Set the chain to be fully wet.
     m_pControlChainMix->set(1.0);
     sendParameterUpdate();

@@ -584,6 +584,15 @@
     </widget>
    </item>
 
+   <item>
+    <widget class="QGroupBox" name="groupReleaseFx">
+     <property name="title">
+      <string>Release FX</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutReleaseFx"/>
+    </widget>
+   </item>
+
   </layout>
  </widget>
  <tabstops>

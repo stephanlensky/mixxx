@@ -15,7 +15,8 @@
 EffectChain::EffectChain(const QString& group,
         EffectsManager* pEffectsManager,
         EffectsMessengerPointer pEffectsMessenger,
-        SignalProcessingStage stage)
+        SignalProcessingStage stage,
+        bool usesReleaseFeature)
         : // The control group names are 1-indexed while internally everything
           // is 0-indexed.
           m_presetName(""),
@@ -24,6 +25,7 @@ EffectChain::EffectChain(const QString& group,
           m_pMessenger(pEffectsMessenger),
           m_group(group),
           m_signalProcessingStage(stage),
+          m_usesReleaseFeature(usesReleaseFeature),
           m_pEngineEffectChain(nullptr) {
     // qDebug() << "EffectChain::EffectChain " << group << ' ' << iChainNumber;
 
@@ -170,7 +172,8 @@ void EffectChain::addToEngine() {
     m_pEngineEffectChain = new EngineEffectChain(
             m_group,
             m_pEffectsManager->registeredInputChannels(),
-            m_pEffectsManager->registeredOutputChannels());
+            m_pEffectsManager->registeredOutputChannels(),
+            m_usesReleaseFeature);
     EffectsRequest* pRequest = new EffectsRequest();
     pRequest->type = EffectsRequest::ADD_EFFECT_CHAIN;
     pRequest->AddEffectChain.signalProcessingStage = m_signalProcessingStage;

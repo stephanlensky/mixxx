@@ -26,7 +26,8 @@ class EngineEffectChain final : public EffectsRequestHandler {
     /// called from main thread
     EngineEffectChain(const QString& group,
             const QSet<ChannelHandleAndGroup>& registeredInputChannels,
-            const QSet<ChannelHandleAndGroup>& registeredOutputChannels);
+            const QSet<ChannelHandleAndGroup>& registeredOutputChannels,
+            bool usesReleaseFeature = false);
     /// called from main thread
     ~EngineEffectChain();
 
@@ -49,9 +50,11 @@ class EngineEffectChain final : public EffectsRequestHandler {
     struct ChannelStatus {
         ChannelStatus()
                 : oldMixKnob(0),
+                  oldReleaseGain(1),
                   enableState(EffectEnableState::Disabled) {
         }
         CSAMPLE oldMixKnob;
+        CSAMPLE_GAIN oldReleaseGain;
         EffectEnableState enableState;
     };
 
@@ -66,6 +69,7 @@ class EngineEffectChain final : public EffectsRequestHandler {
     bool disableForInputChannel(ChannelHandle inputHandle);
 
     QString m_group;
+    bool m_usesReleaseFeature;
     bool m_enableState;
     EffectChainMixMode::Type m_mixMode;
     CSAMPLE m_dMix;

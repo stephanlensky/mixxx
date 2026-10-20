@@ -13,6 +13,7 @@ QString ReverbEffect::getId() {
 EffectManifestPointer ReverbEffect::getManifest() {
     EffectManifestPointer pManifest(new EffectManifest());
     pManifest->setAddDryToWet(true);
+    pManifest->setHandlesRelease(true);
     pManifest->setEffectRampsFromDry(true);
 
     pManifest->setId(getId());
@@ -88,6 +89,12 @@ void ReverbEffect::loadEngineEffectParameters(
     m_pDryParameter = parameters.value("dry_level");
 }
 
+namespace {
+
+constexpr double kReleaseSendLevel = 0.8;
+
+} // namespace
+
 void ReverbEffect::processChannel(
         ReverbGroupState* pState,
         const CSAMPLE* pInput,
@@ -95,12 +102,12 @@ void ReverbEffect::processChannel(
         const mixxx::EngineParameters& engineParameters,
         const EffectEnableState enableState,
         const GroupFeatureState& groupFeatures) {
-    Q_UNUSED(groupFeatures);
-
     const auto decay = static_cast<sample_t>(m_pDecayParameter->value());
     const auto bandwidth = static_cast<sample_t>(m_pBandWidthParameter->value());
     const auto damping = static_cast<sample_t>(m_pDampingParameter->value());
-    const auto sendCurrent = static_cast<sample_t>(m_pSendParameter->value());
+    const auto sendCurrent = groupFeatures.release
+            ? static_cast<sample_t>(groupFeatures.release->sendGain(kReleaseSendLevel))
+            : static_cast<sample_t>(m_pSendParameter->value());
 
     if (pState->sampleRate != engineParameters.sampleRate()) {
         pState->reverb.setSamplerate(engineParameters.sampleRate());
@@ -131,7 +138,9 @@ void ReverbEffect::processChannel(
         pState->dryCurrent = 1;
     } else {
         pState->sendPrevious = sendCurrent;
-        pState->dryCurrent = static_cast<float>(m_pDryParameter->value());
+        pState->dryCurrent = groupFeatures.release
+                ? groupFeatures.release->dryGain()
+                : static_cast<float>(m_pDryParameter->value());
     }
 }
 

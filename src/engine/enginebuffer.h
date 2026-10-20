@@ -39,6 +39,7 @@ class VinylControlControl;
 class LoopingControl;
 class ClockControl;
 class CueControl;
+class ReleaseFxControl;
 class ReadAheadManager;
 class ControlObject;
 class ControlProxy;
@@ -354,6 +355,7 @@ class EngineBuffer : public EngineObject {
     FRIEND_TEST(CueControlTest, SeekOnSetCueCDJ);
     FRIEND_TEST(CueControlTest, SeekOnSetCuePlay);
     CueControl* m_pCueControl;
+    ReleaseFxControl* m_pReleaseFxControl;
 
     QList<EngineControl*> m_engineControls;
 

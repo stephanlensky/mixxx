@@ -29,6 +29,7 @@ class EffectManifest {
               m_isMainEQ(false),
               m_effectRampsFromDry(false),
               m_bAddDryToWet(false),
+              m_handlesRelease(false),
               m_metaknobDefault(0.0) {
     }
 
@@ -147,6 +148,15 @@ class EffectManifest {
         m_bAddDryToWet = addDryToWet;
     }
 
+    /// Whether the effect fades out its dry signal and stops taking input by
+    /// itself during a Release FX, so its tail can ring out.
+    bool handlesRelease() const {
+        return m_handlesRelease;
+    }
+    void setHandlesRelease(bool handlesRelease) {
+        m_handlesRelease = handlesRelease;
+    }
+
     double metaknobDefault() const {
         return m_metaknobDefault;
     }
@@ -186,5 +196,6 @@ class EffectManifest {
     QList<EffectManifestParameterPointer> m_parameters;
     bool m_effectRampsFromDry;
     bool m_bAddDryToWet;
+    bool m_handlesRelease;
     double m_metaknobDefault;
 };

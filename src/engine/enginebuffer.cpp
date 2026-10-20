@@ -18,6 +18,7 @@
 #include "engine/controls/loopingcontrol.h"
 #include "engine/controls/quantizecontrol.h"
 #include "engine/controls/ratecontrol.h"
+#include "engine/controls/releasefxcontrol.h"
 #include "engine/enginemixer.h"
 #include "engine/readaheadmanager.h"
 #include "engine/sync/enginesync.h"
@@ -244,6 +245,9 @@ EngineBuffer::EngineBuffer(const QString& group,
     // Create the cue controller
     m_pCueControl = new CueControl(group, pConfig);
     addControl(m_pCueControl);
+
+    m_pReleaseFxControl = new ReleaseFxControl(group, pConfig);
+    addControl(m_pReleaseFxControl);
 
     connect(m_pLoopingControl,
             &LoopingControl::loopReset,
@@ -950,6 +954,7 @@ void EngineBuffer::processTrackLocked(
             outputBufferSize,
             &is_scratching,
             &is_reverse);
+    speed = m_pReleaseFxControl->getSpeed(speed, outputBufferSize, sampleRate, &is_scratching);
 
     bool useIndependentPitchAndTempoScaling = false;
 
@@ -1659,6 +1664,7 @@ void EngineBuffer::collectFeatures(GroupFeatureState* pGroupFeatures) const {
     if (m_pBpmControl != nullptr) {
         m_pBpmControl->collectFeatures(pGroupFeatures, m_actual_speed);
     }
+    m_pReleaseFxControl->collectFeatureState(pGroupFeatures);
 }
 
 void EngineBuffer::slotUpdatedTrackBeats() {

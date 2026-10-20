@@ -35,7 +35,8 @@ class EffectChain : public QObject {
     EffectChain(const QString& group,
             EffectsManager* pEffectsManager,
             EffectsMessengerPointer pEffectsMessenger,
-            SignalProcessingStage stage = SignalProcessingStage::Postfader);
+            SignalProcessingStage stage = SignalProcessingStage::Postfader,
+            bool usesReleaseFeature = false);
     virtual ~EffectChain();
 
     QString group() const;
@@ -159,6 +160,7 @@ class EffectChain : public QObject {
     std::unique_ptr<ControlPushButton> m_pControlChainFocusedEffect;
 
     SignalProcessingStage m_signalProcessingStage;
+    bool m_usesReleaseFeature;
     QHash<ChannelHandleAndGroup, std::shared_ptr<ControlPushButton>> m_channelEnableButtons;
     QSet<ChannelHandleAndGroup> m_enabledInputChannels;
     EngineEffectChain* m_pEngineEffectChain;

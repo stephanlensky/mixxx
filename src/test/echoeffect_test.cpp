@@ -100,4 +100,38 @@ TEST_F(EchoEffectTest, DisablingRampsDryLevelBackToUnity) {
     EXPECT_FLOAT_EQ(1.0f, lastSample());
 }
 
+TEST_F(EchoEffectTest, ReleaseFeatureSetsDryLevelFromProgress) {
+    m_groupFeatures.release = GroupFeatureRelease{0.5, false};
+
+    processAndAddDry(EffectEnableState::Enabling);
+    processAndAddDry(EffectEnableState::Enabled);
+    EXPECT_NEAR(std::cos(std::numbers::pi / 4), lastSample(), 1e-5);
+}
+
+TEST_F(EchoEffectTest, ReleaseInputCutKeepsInputOutOfTheEcho) {
+    m_groupFeatures.release = GroupFeatureRelease{1.0, true};
+
+    processAndAddDry(EffectEnableState::Enabling);
+    for (int i = 0; i < 1000; ++i) {
+        processAndAddDry(EffectEnableState::Enabled);
+        for (const CSAMPLE sample : m_output.span()) {
+            ASSERT_NEAR(0.0f, sample, 1e-6);
+        }
+    }
+}
+
+TEST_F(EchoEffectTest, ReleaseFeatureSendsInputIntoTheEcho) {
+    m_groupFeatures.release = GroupFeatureRelease{1.0, false};
+
+    processAndAddDry(EffectEnableState::Enabling);
+    CSAMPLE peak = 0;
+    for (int i = 0; i < 1000; ++i) {
+        processAndAddDry(EffectEnableState::Enabled);
+        for (const CSAMPLE sample : m_output.span()) {
+            peak = std::max(peak, sample);
+        }
+    }
+    EXPECT_GT(peak, 0.5f);
+}
+
 } // namespace

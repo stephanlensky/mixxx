@@ -1,13 +1,16 @@
 #include "engine/effects/engineeffectchain.h"
 
 #include "engine/effects/engineeffect.h"
+#include "engine/effects/groupfeaturestate.h"
 #include "util/defs.h"
 #include "util/sample.h"
 
 EngineEffectChain::EngineEffectChain(const QString& group,
         const QSet<ChannelHandleAndGroup>& registeredInputChannels,
-        const QSet<ChannelHandleAndGroup>& registeredOutputChannels)
+        const QSet<ChannelHandleAndGroup>& registeredOutputChannels,
+        bool usesReleaseFeature)
         : m_group(group),
+          m_usesReleaseFeature(usesReleaseFeature),
           m_enableState(true),
           m_mixMode(EffectChainMixMode::DrySlashWet),
           m_dMix(0),
@@ -183,9 +186,16 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
         CSAMPLE* pOut,
         const std::size_t numSamples,
         const mixxx::audio::SampleRate sampleRate,
-        const GroupFeatureState& groupFeatures,
+        const GroupFeatureState& channelFeatures,
         bool fadeout) {
     DEBUG_ASSERT(numSamples <= kMaxEngineSamples);
+
+    GroupFeatureState groupFeatures = channelFeatures;
+    if (!m_usesReleaseFeature) {
+        groupFeatures.release.reset();
+    } else if (!groupFeatures.release) {
+        groupFeatures.release = GroupFeatureRelease{0.0, false};
+    }
 
     // Compute the effective enable state from the channel input routing switch and
     // the chain's enable state. When either of these are turned on/off, send the
@@ -232,10 +242,12 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
         CSAMPLE* pIntermediateOutput;
         SINT effectChainGroupDelayFrames = 0;
         bool firstAddDryToWetEffectProcessed = false;
+        bool releaseHandledByEffect = false;
         EngineEffect* pSkippedDryEffect = nullptr;
 
         for (EngineEffect* pEffect : std::as_const(m_effects)) {
             if (pEffect != nullptr) {
+                releaseHandledByEffect |= pEffect->getManifest()->handlesRelease();
                 // Select an unused intermediate buffer for the next output
                 if (pIntermediateInput == m_buffer1.data()) {
                     pIntermediateOutput = m_buffer2.data();
@@ -329,6 +341,15 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
                         lastCallbackMixKnob,
                         currentMixKnob,
                         static_cast<int>(numSamples));
+            }
+
+            if (m_usesReleaseFeature && !releaseHandledByEffect) {
+                const CSAMPLE_GAIN releaseGain = groupFeatures.release->dryGain();
+                SampleUtil::applyRampingGain(pOut,
+                        channelStatus.oldReleaseGain,
+                        releaseGain,
+                        numSamples);
+                channelStatus.oldReleaseGain = releaseGain;
             }
         }
     }

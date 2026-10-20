@@ -1326,6 +1326,7 @@ add_library(
   src/effects/chains/outputeffectchain.cpp
   src/effects/chains/pergroupeffectchain.cpp
   src/effects/chains/quickeffectchain.cpp
+  src/effects/chains/releaseeffectchain.cpp
   src/effects/chains/standardeffectchain.cpp
   src/effects/effectbuttonparameterslot.cpp
   src/effects/effectchain.cpp
@@ -1341,6 +1342,7 @@ add_library(
   src/effects/presets/effectparameterpreset.cpp
   src/effects/presets/effectpreset.cpp
   src/effects/presets/effectpresetmanager.cpp
+  src/effects/releasefxsettings.cpp
   src/effects/visibleeffectslist.cpp
   src/encoder/encoder.cpp
   src/encoder/encoderfdkaac.cpp
@@ -1372,6 +1374,7 @@ add_library(
   src/engine/controls/loopingcontrol.cpp
   src/engine/controls/quantizecontrol.cpp
   src/engine/controls/ratecontrol.cpp
+  src/engine/controls/releasefxcontrol.cpp
   src/engine/effects/engineeffect.cpp
   src/engine/effects/engineeffectchain.cpp
   src/engine/effects/engineeffectsdelay.cpp
@@ -3007,6 +3010,8 @@ if(BUILD_TESTING)
     src/test/queryutiltest.cpp
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp
+    src/test/releasefxcontrol_test.cpp
+    src/test/releasefxsettings_test.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
     src/test/rgbcolor_test.cpp
