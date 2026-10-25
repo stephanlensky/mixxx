@@ -58,10 +58,7 @@ BasePlaylistFeature::BasePlaylistFeature(
     connect(m_pLibrary,
             &Library::trackSelected,
             this,
-            [this](const TrackPointer& pTrack) {
-                const auto trackId = pTrack ? pTrack->getId() : TrackId{};
-                slotTrackSelected(trackId);
-            });
+            &BasePlaylistFeature::slotTrackSelected);
     connect(m_pLibrary,
             &Library::switchToView,
             this,

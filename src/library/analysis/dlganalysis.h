@@ -8,6 +8,7 @@
 #include "library/analysis/ui_dlganalysis.h"
 #include "library/libraryview.h"
 #include "preferences/usersettings.h"
+#include "track/trackid.h"
 
 class Library;
 class WAnalysisLibraryTableView;
@@ -50,7 +51,7 @@ class DlgAnalysis : public QWidget, public Ui::DlgAnalysis, public virtual Libra
     void loadTrackToPlayer(TrackPointer pTrack, const QString& player);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
     void stopAnalysis();
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
 
   private:
     void keyPressEvent(QKeyEvent* pEvent) override;

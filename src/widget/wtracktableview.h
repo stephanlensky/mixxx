@@ -165,6 +165,7 @@ class WTrackTableView : public WLibraryTableView {
 
   private:
     void addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc);
+    void emitTrackSelected(TrackModel* pTrackModel, const QModelIndex& index);
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragLeaveEvent(QDragLeaveEvent* event) override;

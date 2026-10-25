@@ -151,10 +151,7 @@ void CrateFeature::connectLibrary(Library* pLibrary) {
     connect(pLibrary,
             &Library::trackSelected,
             this,
-            [this](const TrackPointer& pTrack) {
-                const auto trackId = pTrack ? pTrack->getId() : TrackId{};
-                slotTrackSelected(trackId);
-            });
+            &CrateFeature::slotTrackSelected);
     connect(pLibrary,
             &Library::switchToView,
             this,

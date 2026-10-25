@@ -4,10 +4,12 @@
 #include <QString>
 #include <QTableView>
 
+#include "library/coverart.h"
 #include "library/library_decl.h"
 #include "library/libraryview.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
+#include "track/trackid.h"
 #ifdef __STEM__
 #include "engine/engine.h"
 #endif
@@ -65,7 +67,7 @@ class WLibraryTableView : public QTableView, public virtual LibraryView {
             mixxx::StemChannelSelection stemMask,
 #endif
             bool play = false);
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
     void onlyCachedCoversAndOverviews(bool);
     void scrollValueChanged(int);
     FocusWidget setLibraryFocus(FocusWidget newFocus);

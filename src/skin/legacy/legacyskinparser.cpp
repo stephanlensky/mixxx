@@ -1596,7 +1596,8 @@ QWidget* LegacySkinParser::parseCoverArt(const QDomElement& node) {
         // Connect cover art signals to the library
         connect(m_pLibrary, &Library::switchToView, pCoverArt, &WCoverArt::slotReset);
         connect(m_pLibrary, &Library::enableCoverArtDisplay, pCoverArt, &WCoverArt::slotEnable);
-        connect(m_pLibrary, &Library::trackSelected, pCoverArt, &WCoverArt::slotLoadTrack);
+        pCoverArt->setTrackCollectionManager(m_pLibrary->trackCollectionManager());
+        connect(m_pLibrary, &Library::trackSelected, pCoverArt, &WCoverArt::slotSetSelectedTrack);
     } else if (pPlayer != nullptr) {
         connect(pCoverArt,
                 &WCoverArt::trackDropped,

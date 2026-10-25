@@ -5,9 +5,11 @@
 
 #include "library/autodj/autodjprocessor.h"
 #include "library/autodj/ui_dlgautodj.h"
+#include "library/coverart.h"
 #include "library/libraryview.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
+#include "track/trackid.h"
 
 class PlaylistTableModel;
 class WLibrary;
@@ -57,7 +59,7 @@ class DlgAutoDJ : public QWidget, public Ui::DlgAutoDJ, public LibraryView {
 #else
     void loadTrackToPlayer(TrackPointer tio, const QString& group, bool);
 #endif
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
 
   private:
     void setupActionButton(QPushButton* pButton,

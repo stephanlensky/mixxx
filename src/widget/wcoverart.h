@@ -6,6 +6,7 @@
 #include "library/coverart.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
+#include "track/trackid.h"
 #include "util/cache.h"
 #include "widget/trackdroptarget.h"
 #include "widget/wbasewidget.h"
@@ -15,6 +16,7 @@ class QDomNode;
 class SkinContext;
 class WCoverArtMenu;
 class BaseTrackPlayer;
+class TrackCollectionManager;
 
 class WCoverArt : public QWidget, public WBaseWidget, public TrackDropTarget {
     Q_OBJECT
@@ -24,9 +26,11 @@ class WCoverArt : public QWidget, public WBaseWidget, public TrackDropTarget {
     ~WCoverArt() override;
 
     void setup(const QDomNode& node, const SkinContext& context);
+    void setTrackCollectionManager(TrackCollectionManager* pTrackCollectionManager);
 
   public slots:
     void slotLoadTrack(TrackPointer);
+    void slotSetSelectedTrack(TrackId trackId, const CoverInfo& coverInfo);
     void slotLoadingTrack(TrackPointer pNewTrack, TrackPointer pOldTrack);
     void slotReset();
     void slotEnable(bool);
@@ -58,12 +62,19 @@ class WCoverArt : public QWidget, public WBaseWidget, public TrackDropTarget {
 
   private:
     QPixmap scaledCoverArt(const QPixmap& normal);
+    bool hasTrack() const;
+    QString getTrackLocation() const;
+    TrackPointer getTrack();
+    void setLoadedTrack(TrackPointer pTrack);
 
     const QString m_group;
     UserSettingsPointer m_pConfig;
     bool m_bEnable;
     WCoverArtMenu* m_pMenu;
     TrackPointer m_loadedTrack;
+    TrackId m_selectedTrackId;
+    CoverInfo m_selectedCoverInfo;
+    TrackCollectionManager* m_pTrackCollectionManager;
     QPixmap m_loadedCover;
     QPixmap m_loadedCoverScaled;
     QPixmap m_defaultCover;

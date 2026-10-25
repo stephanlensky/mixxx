@@ -1,8 +1,10 @@
 #pragma once
 
+#include "library/coverart.h"
 #include "library/libraryview.h"
 #include "library/ui_dlghidden.h"
 #include "preferences/usersettings.h"
+#include "track/trackid.h"
 #ifdef __STEM__
 #include "engine/engine.h"
 #endif
@@ -35,7 +37,7 @@ class DlgHidden : public QWidget, public Ui::DlgHidden, public LibraryView {
     void selectionChanged(const QItemSelection&, const QItemSelection&);
 
   signals:
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
     void loadTrack(TrackPointer tio);
 #ifdef __STEM__
     void loadTrackToPlayer(TrackPointer tio,

@@ -1,8 +1,10 @@
 #pragma once
 
+#include "library/coverart.h"
 #include "library/libraryview.h"
 #include "library/ui_dlgmissing.h"
 #include "preferences/usersettings.h"
+#include "track/trackid.h"
 
 class WLibrary;
 class WTrackTableView;
@@ -33,7 +35,7 @@ class DlgMissing : public QWidget, public Ui::DlgMissing, public LibraryView {
     void selectionChanged(const QItemSelection&, const QItemSelection&);
 
   signals:
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
 
   private:
     void activateButtons(bool enable);

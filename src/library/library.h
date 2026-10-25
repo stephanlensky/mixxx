@@ -6,12 +6,14 @@
 #include <QPointer>
 
 #include "analyzer/trackanalysisscheduler.h"
+#include "library/coverart.h"
 #include "library/library_decl.h"
 #ifdef __ENGINEPRIME__
 #include "library/trackset/crate/crateid.h"
 #endif
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
+#include "track/trackid.h"
 #include "util/db/dbconnectionpool.h"
 #include "util/parented_ptr.h"
 
@@ -161,7 +163,7 @@ class Library: public QObject {
     // emit this signal to enable/disable the cover art widget
     void enableCoverArtDisplay(bool);
     void selectTrack(const TrackId&);
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
     void analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks);
 #ifdef __ENGINEPRIME__
     void exportLibrary();

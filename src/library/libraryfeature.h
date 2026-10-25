@@ -168,7 +168,7 @@ class LibraryFeature : public QObject {
     void featureSelect(LibraryFeature* pFeature, const QModelIndex& index, bool scrollTo = true);
     // emit this signal to enable/disable the cover art widget
     void enableCoverArtDisplay(bool);
-    void trackSelected(TrackPointer pTrack);
+    void trackSelected(TrackId trackId, const CoverInfo& coverInfo);
 
   protected:
     // TODO: Move common crate/playlist functions into

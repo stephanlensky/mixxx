@@ -165,14 +165,11 @@ void WTrackTableView::slotGuiTick50ms(double /*unused*/) {
                 // A single track has been selected
                 TrackModel* pTrackModel = getTrackModel();
                 if (pTrackModel) {
-                    TrackPointer pTrack = pTrackModel->getTrack(indices.first());
-                    if (pTrack) {
-                        emit trackSelected(pTrack);
-                    }
+                    emitTrackSelected(pTrackModel, indices.first());
                 }
             } else {
                 // None or multiple tracks have been selected
-                emit trackSelected(TrackPointer());
+                emit trackSelected(TrackId(), CoverInfo());
             }
             m_selectionChangedSinceLastGuiTick = false;
         }
@@ -182,6 +179,17 @@ void WTrackTableView::slotGuiTick50ms(double /*unused*/) {
         emit onlyCachedCoversAndOverviews(false);
         m_loadCachedOnly = false;
     }
+}
+
+void WTrackTableView::emitTrackSelected(TrackModel* pTrackModel, const QModelIndex& index) {
+    if (pTrackModel->trackIdRequiresTrackLoad()) {
+        const TrackPointer pTrack = pTrackModel->getTrack(index);
+        if (pTrack) {
+            emit trackSelected(pTrack->getId(), pTrack->getCoverInfoWithLocation());
+        }
+        return;
+    }
+    emit trackSelected(pTrackModel->getTrackId(index), pTrackModel->getCoverInfo(index));
 }
 
 // slot

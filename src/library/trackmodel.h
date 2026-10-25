@@ -129,6 +129,10 @@ class TrackModel {
 
     virtual CoverInfo getCoverInfo(const QModelIndex& index) const = 0;
 
+    virtual bool trackIdRequiresTrackLoad() const {
+        return false;
+    }
+
     // Gets the rows of the track in the current result set. Returns an
     // empty list if the track ID is not present in the result set.
     virtual const QVector<int> getTrackRows(TrackId trackId) const = 0;
