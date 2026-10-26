@@ -27,6 +27,7 @@ struct LibraryScanResultSummary;
 namespace mixxx {
 
 class ControlIndicatorTimer;
+class DeckStateServer;
 class DbConnectionPool;
 class ScreensaverManager;
 
@@ -144,6 +145,7 @@ class CoreServices : public QObject {
     std::shared_ptr<KeyboardEventFilter> m_pKeyboardEventFilter;
 
     std::shared_ptr<mixxx::ScreensaverManager> m_pScreensaverManager;
+    std::unique_ptr<DeckStateServer> m_pDeckStateServer;
 
     std::unique_ptr<SkinControls> m_pSkinControls;
     std::unique_ptr<ControlPushButton> m_pTouchShift;
