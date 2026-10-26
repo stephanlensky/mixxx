@@ -611,10 +611,8 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pScreensaverManager.get(),
             &ScreensaverManager::slotCurrentPlayingDeckChanged);
 
-    if (DeckStateServer::isEnabled(pConfig)) {
-        m_pDeckStateServer = std::make_unique<DeckStateServer>(
-                DeckStateServer::getSocketPath(pConfig));
-    }
+    m_pDeckStateServer = std::make_unique<DeckStateServer>(
+            DeckStateServer::getSocketPath(pConfig));
 
     emit initializationProgressUpdate(50, tr("library"));
     CoverArtCache::createInstance();

@@ -81,6 +81,8 @@ class DeckStateServerTest : public MixxxTest {
 
         ASSERT_TRUE(m_socketDir.isValid());
         m_pServer = std::make_unique<DeckStateServer>(getSocketPath());
+        EXPECT_FALSE(m_pServer->isListening());
+        setEnabled(true);
         ASSERT_TRUE(m_pServer->isListening());
     }
 
@@ -93,6 +95,11 @@ class DeckStateServerTest : public MixxxTest {
     void addControl(const QString& group, const QString& item, double value) {
         m_controls.push_back(std::make_unique<ControlObject>(ConfigKey(group, item)));
         m_controls.back()->set(value);
+    }
+
+    void setEnabled(bool enabled) {
+        ControlObject::set(ConfigKey(QStringLiteral("[DeckStateServer]"), QStringLiteral("enabled")),
+                enabled ? 1.0 : 0.0);
     }
 
     QString getSocketPath() const {
@@ -192,6 +199,28 @@ TEST_F(DeckStateServerTest, SendsTrackChanges) {
     PlayerInfo::instance().setTrackInfo(kGroup, TrackPointer());
     const QJsonObject ejected = readMessage(&socket, QStringLiteral("track"));
     EXPECT_TRUE(ejected.value(QStringLiteral("track")).isNull());
+}
+
+TEST_F(DeckStateServerTest, DisablingDisconnectsClients) {
+    QLocalSocket socket;
+    socket.connectToServer(getSocketPath());
+    ASSERT_TRUE(socket.waitForConnected(1000));
+    readMessage(&socket, QStringLiteral("decks"));
+
+    setEnabled(false);
+    EXPECT_FALSE(m_pServer->isListening());
+    EXPECT_TRUE(socket.state() == QLocalSocket::UnconnectedState ||
+            socket.waitForDisconnected(1000));
+
+    QLocalSocket rejected;
+    rejected.connectToServer(getSocketPath());
+    EXPECT_FALSE(rejected.waitForConnected(100));
+
+    setEnabled(true);
+    QLocalSocket reconnected;
+    reconnected.connectToServer(getSocketPath());
+    ASSERT_TRUE(reconnected.waitForConnected(1000));
+    readMessage(&reconnected, QStringLiteral("decks"));
 }
 
 } // namespace

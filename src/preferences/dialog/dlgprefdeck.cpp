@@ -10,6 +10,7 @@
 #include "mixer/basetrackplayer.h"
 #include "mixer/playermanager.h"
 #include "moc_dlgprefdeck.cpp"
+#include "network/deckstateserver.h"
 #include "preferences/usersettings.h"
 #include "util/duration.h"
 
@@ -46,6 +47,11 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
                   kConfigKeyBackspinMomentum)),
           m_pControlBackspinMomentumTime(std::make_unique<ControlObject>(
                   kConfigKeyBackspinMomentumTime)),
+          m_pDeckStateServerEnabled(make_parented<ControlProxy>(
+                  QStringLiteral("[DeckStateServer]"),
+                  QStringLiteral("enabled"),
+                  this,
+                  ControlFlag::AllowMissingOrInvalid)),
           m_pNumDecks(make_parented<ControlProxy>(
                   kAppGroup, QStringLiteral("num_decks"), this)),
           m_pNumSamplers(make_parented<ControlProxy>(
@@ -244,6 +250,9 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             &QCheckBox::toggled,
             this,
             &DlgPrefDeck::slotBackspinMomentumCheckbox);
+
+    labelDeckStateServerSocket->setText(
+            tr("Socket: %1").arg(mixxx::DeckStateServer::getSocketPath(m_pConfig)));
 
     m_bRateDownIncreasesSpeed = m_pConfig->getValue(
             ConfigKey(kControlsGroup, QStringLiteral("RateDir")), kDefaultRateDirectionInverted);
@@ -469,6 +478,7 @@ void DlgPrefDeck::slotUpdate() {
             ConfigKey(kControlsGroup, QStringLiteral("CloneDeckOnLoadDoubleTap")), true));
 
     checkBoxBackspinMomentum->setChecked(m_pControlBackspinMomentum->toBool());
+    checkBoxDeckStateServer->setChecked(m_pDeckStateServerEnabled->toBool());
     spinBoxBackspinMomentumTime->setValue(m_pControlBackspinMomentumTime->get());
     slotBackspinMomentumCheckbox(checkBoxBackspinMomentum->isChecked());
 
@@ -561,6 +571,8 @@ void DlgPrefDeck::slotResetToDefaults() {
     // Backspin momentum when releasing a controller jog wheel
     checkBoxBackspinMomentum->setChecked(kDefaultBackspinMomentum);
     spinBoxBackspinMomentumTime->setValue(kDefaultBackspinMomentumTimeSeconds);
+
+    checkBoxDeckStateServer->setChecked(false);
 
     // Mixxx cue mode
     ComboBoxCueMode->setCurrentIndex(0);
@@ -757,6 +769,8 @@ void DlgPrefDeck::slotApply() {
     m_pControlBackspinMomentumTime->set(backspinMomentumTime);
     m_pConfig->setValue(kConfigKeyBackspinMomentum, backspinMomentum);
     m_pConfig->setValue(kConfigKeyBackspinMomentumTime, backspinMomentumTime);
+
+    m_pDeckStateServerEnabled->set(checkBoxDeckStateServer->isChecked() ? 1.0 : 0.0);
 
     // Set rate range
     // Set the config value before setting the CO values in setRateRangeForAllDecks()

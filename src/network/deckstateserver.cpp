@@ -7,6 +7,7 @@
 #include <QLocalSocket>
 #include <QStandardPaths>
 
+#include "control/controlpushbutton.h"
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "moc_deckstateserver.cpp"
@@ -21,7 +22,7 @@ namespace {
 const Logger kLogger("DeckStateServer");
 
 const QString kConfigGroup = QStringLiteral("[DeckStateServer]");
-const ConfigKey kEnabledKey = ConfigKey(kConfigGroup, QStringLiteral("Enabled"));
+const ConfigKey kEnabledKey = ConfigKey(kConfigGroup, QStringLiteral("enabled"));
 const ConfigKey kSocketPathKey = ConfigKey(kConfigGroup, QStringLiteral("SocketPath"));
 const QString kSocketFileName = QStringLiteral("mixxx-deck-state.sock");
 
@@ -80,10 +81,17 @@ DeckStateServer::DeckControls::DeckControls(const QString& group)
 
 DeckStateServer::DeckStateServer(const QString& socketPath, QObject* pParent)
         : QObject(pParent),
+          m_socketPath(socketPath),
+          m_pEnabled(std::make_unique<ControlPushButton>(kEnabledKey, true)),
           m_pServer(new QLocalServer(this)),
           m_numDecks(kAppGroup, QStringLiteral("num_decks")),
           m_crossfader(kMainGroup, QStringLiteral("crossfader")),
           m_outputLatency(kAppGroup, QStringLiteral("output_latency_ms")) {
+    m_pEnabled->setButtonMode(control::ButtonMode::Toggle);
+    connect(m_pEnabled.get(),
+            &ControlObject::valueChanged,
+            this,
+            &DeckStateServer::slotEnabledChanged);
     m_timer.setInterval(kUpdateIntervalMillis);
     connect(&m_timer, &QTimer::timeout, this, &DeckStateServer::slotUpdate);
     connect(m_pServer, &QLocalServer::newConnection, this, &DeckStateServer::slotNewConnection);
@@ -91,21 +99,11 @@ DeckStateServer::DeckStateServer(const QString& socketPath, QObject* pParent)
             &PlayerInfo::trackChanged,
             this,
             &DeckStateServer::slotTrackChanged);
-
-    QLocalServer::removeServer(socketPath);
-    if (m_pServer->listen(socketPath)) {
-        kLogger.info() << "Listening on" << socketPath;
-    } else {
-        kLogger.warning() << "Failed to listen on" << socketPath << m_pServer->errorString();
-    }
+    slotEnabledChanged(m_pEnabled->get());
 }
 
 DeckStateServer::~DeckStateServer() {
-    m_pServer->close();
-}
-
-bool DeckStateServer::isEnabled(const UserSettingsPointer& pConfig) {
-    return pConfig->getValue(kEnabledKey, false);
+    close();
 }
 
 QString DeckStateServer::getSocketPath(const UserSettingsPointer& pConfig) {
@@ -134,6 +132,41 @@ std::optional<double> DeckStateServer::getBeatPosition(
 
 bool DeckStateServer::isListening() const {
     return m_pServer->isListening();
+}
+
+void DeckStateServer::slotEnabledChanged(double value) {
+    if (value > 0) {
+        listen();
+    } else {
+        close();
+    }
+}
+
+void DeckStateServer::listen() {
+    if (m_pServer->isListening()) {
+        return;
+    }
+    QLocalServer::removeServer(m_socketPath);
+    if (m_pServer->listen(m_socketPath)) {
+        kLogger.info() << "Listening on" << m_socketPath;
+    } else {
+        kLogger.warning() << "Failed to listen on" << m_socketPath << m_pServer->errorString();
+    }
+}
+
+void DeckStateServer::close() {
+    m_timer.stop();
+    const auto sockets = m_sockets;
+    m_sockets.clear();
+    for (QLocalSocket* pSocket : sockets) {
+        pSocket->disconnect(this);
+        pSocket->abort();
+        pSocket->deleteLater();
+    }
+    if (m_pServer->isListening()) {
+        m_pServer->close();
+        kLogger.info() << "Stopped listening on" << m_socketPath;
+    }
 }
 
 void DeckStateServer::slotNewConnection() {

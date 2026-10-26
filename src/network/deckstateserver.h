@@ -13,6 +13,7 @@
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
 
+class ControlPushButton;
 class QLocalServer;
 class QLocalSocket;
 
@@ -27,7 +28,6 @@ class DeckStateServer : public QObject {
     explicit DeckStateServer(const QString& socketPath, QObject* pParent = nullptr);
     ~DeckStateServer() override;
 
-    static bool isEnabled(const UserSettingsPointer& pConfig);
     static QString getSocketPath(const UserSettingsPointer& pConfig);
 
     /// Fractional beat number at `position`, where beat 0 is the first beat at or after the track start.
@@ -37,6 +37,7 @@ class DeckStateServer : public QObject {
     bool isListening() const;
 
   private slots:
+    void slotEnabledChanged(double value);
     void slotNewConnection();
     void slotTrackChanged(const QString& group, TrackPointer pNewTrack, TrackPointer pOldTrack);
     void slotUpdate();
@@ -55,6 +56,8 @@ class DeckStateServer : public QObject {
         PollingControlProxy orientation;
     };
 
+    void listen();
+    void close();
     void updateDeckControls();
     QJsonObject getDeckJson(const DeckControls& controls) const;
     QJsonObject getDecksMessage() const;
@@ -62,6 +65,8 @@ class DeckStateServer : public QObject {
     void sendTo(QLocalSocket* pSocket, const QJsonObject& message);
     void removeSocket(QLocalSocket* pSocket);
 
+    const QString m_socketPath;
+    const std::unique_ptr<ControlPushButton> m_pEnabled;
     QLocalServer* m_pServer;
     QList<QLocalSocket*> m_sockets;
     QTimer m_timer;
