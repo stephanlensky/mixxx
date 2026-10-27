@@ -5,6 +5,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <array>
+#include <cmath>
 
 #include "control/controlproxy.h"
 #include "mixer/playerinfo.h"
@@ -189,15 +190,21 @@ QString WNumberPos::getBeatsText(double dTimeElapsed, double dTimeRemaining) con
     const auto firstBeat = pBeats->iteratorFrom(mixxx::audio::kStartFramePos);
     const auto nextBeat = pBeats->iteratorFrom(position);
     const int totalBeats = pBeats->iteratorFrom(trackEnd) - firstBeat;
-    const int beat = (nextBeat - firstBeat) + (*nextBeat == position ? 1 : 0);
-    const QString beatsRemaining = QLatin1String("-") % QString::number(totalBeats - beat);
+    double beat = nextBeat - firstBeat;
+    if (*nextBeat != position) {
+        const auto prevBeat = std::prev(nextBeat);
+        beat += (position - *prevBeat) / (*nextBeat - *prevBeat) - 1;
+    }
+    beat = std::floor(beat * 100) / 100;
+    const QString beatText = QString::number(beat + 1, 'f', 2);
+    const QString beatsRemainingText = QString::number(totalBeats - 1 - beat, 'f', 2);
 
     if (m_displayMode == TrackTime::DisplayMode::BEAT_AND_TOTAL_BEATS) {
-        return QString::number(beat) % QLatin1String(" / ") % QString::number(totalBeats);
+        return beatText % QLatin1String(" / ") % QString::number(totalBeats);
     } else if (m_displayMode == TrackTime::DisplayMode::BEATS_REMAINING) {
-        return beatsRemaining;
+        return QLatin1String("-") % beatsRemainingText;
     }
-    return QString::number(beat) % QLatin1String("  ") % beatsRemaining;
+    return beatText % QLatin1String("  -") % beatsRemainingText;
 }
 
 void WNumberPos::slotTrackChanged(
