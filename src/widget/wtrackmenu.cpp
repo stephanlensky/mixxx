@@ -3077,6 +3077,8 @@ bool WTrackMenu::featureIsEnabled(Feature flag) const {
         return true;
     case Feature::FindOnWeb:
         return true;
+    case Feature::Copy:
+        return true;
     case Feature::Properties:
         return m_pTrackModel->hasCapabilities(TrackModel::Capability::Properties);
     case Feature::SearchRelated:
