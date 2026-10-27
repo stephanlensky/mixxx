@@ -51,7 +51,7 @@ class DlgPrefDeck : public DlgPreferencePage, public Ui::DlgPrefDeckDlg  {
     void slotRateTempFineSpinbox(double);
     void slotRatePermCoarseSpinbox(double);
     void slotRatePermFineSpinbox(double);
-    void slotSetTrackTimeDisplay(QAbstractButton*);
+    void slotPositionDisplayComboBox(int index);
     void slotSetTrackTimeDisplay(double);
     void slotCueModeCombobox(int);
     void slotSetTrackLoadMode(int comboboxIndex);

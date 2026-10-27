@@ -140,7 +140,7 @@ CUP mode:
          <bool>false</bool>
         </property>
         <property name="buddy">
-         <cstring>radioButtonElapsed</cstring>
+         <cstring>comboBoxPositionDisplay</cstring>
         </property>
        </widget>
       </item>
@@ -148,38 +148,7 @@ CUP mode:
        <widget class="QComboBox" name="comboBoxLoadWhenDeckPlaying"/>
       </item>
       <item row="2" column="1" colspan="2">
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QRadioButton" name="radioButtonElapsed">
-          <property name="text">
-           <string>Elapsed</string>
-          </property>
-          <attribute name="buttonGroup">
-           <string notr="true">buttonGroupTrackTime</string>
-          </attribute>
-         </widget>
-        </item>
-        <item>
-         <widget class="QRadioButton" name="radioButtonRemaining">
-          <property name="text">
-           <string>Remaining</string>
-          </property>
-          <attribute name="buttonGroup">
-           <string notr="true">buttonGroupTrackTime</string>
-          </attribute>
-         </widget>
-        </item>
-        <item>
-         <widget class="QRadioButton" name="radioButtonElapsedAndRemaining">
-          <property name="text">
-           <string>Elapsed and Remaining</string>
-          </property>
-          <attribute name="buttonGroup">
-           <string notr="true">buttonGroupTrackTime</string>
-          </attribute>
-         </widget>
-        </item>
-       </layout>
+       <widget class="QComboBox" name="comboBoxPositionDisplay"/>
       </item>
       <item row="6" column="1" colspan="2">
        <widget class="QCheckBox" name="checkBoxCloneDeckOnLoadDoubleTap">
@@ -757,9 +726,7 @@ Faster backspins run out longer, slower ones shorter.</string>
  <tabstops>
   <tabstop>ComboBoxCueMode</tabstop>
   <tabstop>checkBoxIntroStartMove</tabstop>
-  <tabstop>radioButtonElapsed</tabstop>
-  <tabstop>radioButtonRemaining</tabstop>
-  <tabstop>radioButtonElapsedAndRemaining</tabstop>
+  <tabstop>comboBoxPositionDisplay</tabstop>
   <tabstop>comboBoxTimeFormat</tabstop>
   <tabstop>comboBoxLoadPoint</tabstop>
   <tabstop>comboBoxLoadWhenDeckPlaying</tabstop>
@@ -786,7 +753,6 @@ Faster backspins run out longer, slower ones shorter.</string>
  </tabstops>
  <resources/>
  <buttongroups>
-  <buttongroup name="buttonGroupTrackTime"/>
   <buttongroup name="buttonGroupKeyUnlockMode"/>
   <buttongroup name="buttonGroupKeyLockMode"/>
   <buttongroup name="buttonGroupSpeedBendBehavior"/>

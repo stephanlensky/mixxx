@@ -13,6 +13,7 @@
 #include "network/deckstateserver.h"
 #include "preferences/usersettings.h"
 #include "util/duration.h"
+#include "widget/wnumberpos.h"
 
 namespace {
 constexpr int kDefaultRateRangePercent = 8;
@@ -98,29 +99,19 @@ DlgPrefDeck::DlgPrefDeck(QWidget* parent, UserSettingsPointer pConfig)
             this,
             QOverload<double>::of(&DlgPrefDeck::slotSetTrackTimeDisplay));
 
-    double positionDisplayType = m_pConfig->getValue(
-            ConfigKey(kControlsGroup, QStringLiteral("PositionDisplay")),
-            kDefaultPositionDisplayType);
-    if (positionDisplayType ==
-            static_cast<double>(TrackTime::DisplayMode::REMAINING)) {
-        radioButtonRemaining->setChecked(true);
-        m_pControlTrackTimeDisplay->set(
-            static_cast<double>(TrackTime::DisplayMode::REMAINING));
-    } else if (positionDisplayType ==
-                   static_cast<double>(TrackTime::DisplayMode::ELAPSED_AND_REMAINING)) {
-        radioButtonElapsedAndRemaining->setChecked(true);
-        m_pControlTrackTimeDisplay->set(
-            static_cast<double>(TrackTime::DisplayMode::ELAPSED_AND_REMAINING));
-    } else {
-        radioButtonElapsed->setChecked(true);
-        m_pControlTrackTimeDisplay->set(
-            static_cast<double>(TrackTime::DisplayMode::ELAPSED));
+    for (int i = 0; i <= static_cast<int>(TrackTime::DisplayMode::BEAT_AND_BEATS_REMAINING);
+            ++i) {
+        comboBoxPositionDisplay->addItem(
+                WNumberPos::getDisplayModeName(static_cast<TrackTime::DisplayMode>(i)), i);
     }
-    connect(buttonGroupTrackTime,
-            QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked),
+    m_pControlTrackTimeDisplay->set(m_pConfig->getValue(
+            ConfigKey(kControlsGroup, QStringLiteral("PositionDisplay")),
+            kDefaultPositionDisplayType));
+    slotSetTrackTimeDisplay(m_pControlTrackTimeDisplay->get());
+    connect(comboBoxPositionDisplay,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
-            QOverload<QAbstractButton*>::of(
-                    &DlgPrefDeck::slotSetTrackTimeDisplay));
+            &DlgPrefDeck::slotPositionDisplayComboBox);
 
     // display time format
     connect(m_pControlTrackTimeFormat.get(),
@@ -670,26 +661,16 @@ void DlgPrefDeck::slotBackspinMomentumCheckbox(bool checked) {
     spinBoxBackspinMomentumTime->setEnabled(checked);
 }
 
-void DlgPrefDeck::slotSetTrackTimeDisplay(QAbstractButton* b) {
-    if (b == radioButtonRemaining) {
-        m_timeDisplayMode = TrackTime::DisplayMode::REMAINING;
-    } else if (b == radioButtonElapsedAndRemaining) {
-        m_timeDisplayMode = TrackTime::DisplayMode::ELAPSED_AND_REMAINING;
-    } else {
-        m_timeDisplayMode = TrackTime::DisplayMode::ELAPSED;
-    }
+void DlgPrefDeck::slotPositionDisplayComboBox(int index) {
+    m_timeDisplayMode = static_cast<TrackTime::DisplayMode>(
+            comboBoxPositionDisplay->itemData(index).toInt());
 }
 
 void DlgPrefDeck::slotSetTrackTimeDisplay(double v) {
-    m_timeDisplayMode = static_cast<TrackTime::DisplayMode>(static_cast<int>(v));
     m_pConfig->set(ConfigKey(kControlsGroup, QStringLiteral("PositionDisplay")), ConfigValue(v));
-    if (m_timeDisplayMode == TrackTime::DisplayMode::REMAINING) {
-        radioButtonRemaining->setChecked(true);
-    } else if (m_timeDisplayMode == TrackTime::DisplayMode::ELAPSED_AND_REMAINING) {
-        radioButtonElapsedAndRemaining->setChecked(true);
-    } else { // Elapsed
-        radioButtonElapsed->setChecked(true);
-    }
+    const int index = comboBoxPositionDisplay->findData(static_cast<int>(v));
+    comboBoxPositionDisplay->setCurrentIndex(index >= 0 ? index : 0);
+    slotPositionDisplayComboBox(comboBoxPositionDisplay->currentIndex());
 }
 
 void DlgPrefDeck::slotRateTempCoarseSpinbox(double value) {

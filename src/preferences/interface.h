@@ -5,6 +5,9 @@ enum class DisplayMode {
     ELAPSED,
     REMAINING,
     ELAPSED_AND_REMAINING,
+    BEAT_AND_TOTAL_BEATS,
+    BEATS_REMAINING,
+    BEAT_AND_BEATS_REMAINING,
 };
 
 enum class DisplayFormat {
