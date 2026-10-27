@@ -59,11 +59,12 @@ class WTrackMenu : public QMenu {
         SelectInLibrary = 1 << 15,
         Analyze = 1 << 16,
         FindOnWeb = 1 << 17,
+        Copy = 1 << 18,
         TrackModelFeatures = Remove | HideUnhidePurge,
         All = AutoDJ | LoadTo | Playlist | Crate | Remove | Metadata | Reset | Analyze |
                 BPM | Color | HideUnhidePurge | RemoveFromDisk | FileBrowser |
                 Properties | SearchRelated | UpdateReplayGainFromPregain | SelectInLibrary |
-                FindOnWeb
+                FindOnWeb | Copy
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
@@ -83,7 +84,8 @@ class WTrackMenu : public QMenu {
             WTrackMenu::Feature::Properties |
             WTrackMenu::Feature::UpdateReplayGainFromPregain |
             WTrackMenu::Feature::FindOnWeb |
-            WTrackMenu::Feature::SelectInLibrary};
+            WTrackMenu::Feature::SelectInLibrary |
+            WTrackMenu::Feature::Copy};
 
     WTrackMenu(QWidget* parent,
             UserSettingsPointer pConfig,
@@ -245,6 +247,9 @@ class WTrackMenu : public QMenu {
     void addSelectionToPlaylist(int iPlaylistId);
     void updateSelectionCrates(QWidget* pWidget);
 
+    void addCopyAction(const QString& label, QString (Track::*getValue)() const);
+    void copyToClipboard(QString (Track::*getValue)() const);
+
     void addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc);
     void addToAnalysis(AnalyzerTrack::Options options = AnalyzerTrack::Options());
 
@@ -299,6 +304,7 @@ class WTrackMenu : public QMenu {
     parented_ptr<WCoverArtMenu> m_pCoverMenu;
     parented_ptr<WSearchRelatedTracksMenu> m_pSearchRelatedMenu;
     parented_ptr<QMenu> m_pFindOnWebMenu;
+    parented_ptr<QMenu> m_pCopyMenu;
     parented_ptr<FindOnWebLast> m_pFindOnWebLastAct;
 #if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
     QMenu* m_pRemoveFromDiskMenu{};

@@ -1,6 +1,8 @@
 #include "widget/wtrackmenu.h"
 
+#include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QDialogButtonBox>
 #include <QInputDialog>
 #include <QList>
@@ -294,6 +296,10 @@ void WTrackMenu::createMenus() {
                 });
     }
 
+    if (featureIsEnabled(Feature::Copy)) {
+        m_pCopyMenu = make_parented<QMenu>(tr("Copy"), this);
+    }
+
     if (featureIsEnabled(Feature::RemoveFromDisk)) {
         // Qt added QFile::MoveToTrash() in 5.15. If that's not available we
         // permanently delete files, put the action into a submenu for safety
@@ -395,6 +401,23 @@ void WTrackMenu::createActions() {
     if (featureIsEnabled(Feature::FileBrowser)) {
         m_pFileBrowserAct = make_parented<QAction>(tr("Open in File Browser"), this);
         connect(m_pFileBrowserAct, &QAction::triggered, this, &WTrackMenu::slotOpenInFileBrowser);
+    }
+
+    if (featureIsEnabled(Feature::Copy)) {
+        addCopyAction(tr("Path"), &Track::getLocation);
+        m_pCopyMenu->addSeparator();
+        addCopyAction(tr("Title"), &Track::getTitle);
+        addCopyAction(tr("Artist"), &Track::getArtist);
+        addCopyAction(tr("Album"), &Track::getAlbum);
+        addCopyAction(tr("Album Artist"), &Track::getAlbumArtist);
+        addCopyAction(tr("Genre"), &Track::getGenre);
+        addCopyAction(tr("Composer"), &Track::getComposer);
+        addCopyAction(tr("Grouping"), &Track::getGrouping);
+        addCopyAction(tr("Year"), &Track::getYear);
+        addCopyAction(tr("Track #"), &Track::getTrackNumber);
+        addCopyAction(tr("BPM"), &Track::getBpmText);
+        addCopyAction(tr("Key"), &Track::getKeyText);
+        addCopyAction(tr("Comment"), &Track::getComment);
     }
 
     if (featureIsEnabled(Feature::SelectInLibrary)) {
@@ -801,6 +824,10 @@ void WTrackMenu::setupActions() {
 
     if (featureIsEnabled(Feature::FileBrowser)) {
         addAction(m_pFileBrowserAct);
+    }
+
+    if (featureIsEnabled(Feature::Copy)) {
+        addMenu(m_pCopyMenu);
     }
 
     if (featureIsEnabled(Feature::Properties)) {
@@ -1446,6 +1473,24 @@ void WTrackMenu::slotOpenInFileBrowser() {
         locations << trackRef.getLocation();
     }
     mixxx::DesktopHelper::openInFileBrowser(locations);
+}
+
+void WTrackMenu::addCopyAction(const QString& label, QString (Track::*getValue)() const) {
+    QAction* pAction = make_parented<QAction>(label, m_pCopyMenu);
+    connect(pAction, &QAction::triggered, this, [this, getValue] {
+        copyToClipboard(getValue);
+    });
+    m_pCopyMenu->addAction(pAction);
+}
+
+void WTrackMenu::copyToClipboard(QString (Track::*getValue)() const) {
+    QStringList values;
+    for (const auto& pTrack : getTrackPointers()) {
+        if (pTrack) {
+            values << (pTrack.get()->*getValue)();
+        }
+    }
+    QApplication::clipboard()->setText(values.join(QChar('\n')));
 }
 
 void WTrackMenu::slotSelectInLibrary() {
