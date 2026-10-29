@@ -751,6 +751,27 @@ PioneerDDJSB3.deckFaderLSB = function(channel, control, value, status, group) {
     engine.setValue(group, "volume", fullValue / 0x3FFF);
 };
 
+// The hardware sends -a * (e^(k * (1 - position)) - 1) dB, fitted to measured sweeps with the center at -16.1 dB
+PioneerDDJSB3.masterLevelCurve = {a: 7.57, k: 2.28};
+
+PioneerDDJSB3.masterLevelMSB = 0;
+
+PioneerDDJSB3.getMasterLevelPosition = function(value) {
+    var curve = PioneerDDJSB3.masterLevelCurve;
+    var db = 20 * Math.log10(value);
+    var position = 1 - Math.log(1 - db / curve.a) / curve.k;
+    return Math.min(Math.max(position, 0), 1);
+};
+
+PioneerDDJSB3.masterLevelKnobMSB = function(channel, control, value) {
+    PioneerDDJSB3.masterLevelMSB = value;
+};
+
+PioneerDDJSB3.masterLevelKnobLSB = function(channel, control, value) {
+    var fullValue = (PioneerDDJSB3.masterLevelMSB << 7) + value;
+    engine.setParameter("[Master]", "gain", PioneerDDJSB3.getMasterLevelPosition(fullValue / 0x3FFF));
+};
+
 ///////////////////////////////////////////////////////////////
 //           SINGLE MESSAGE MIDI INPUT HANDLERS              //
 ///////////////////////////////////////////////////////////////
