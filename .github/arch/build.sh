@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_dir=/src
+build_dir=/build
+out_dir=/src/out
+
+trap 'chmod -R a+rwX "$out_dir" "$CCACHE_DIR" 2>/dev/null || true' EXIT
+
+pacman -Syu --noconfirm --needed ccache git
+(
+    source "$source_dir/.github/arch/PKGBUILD"
+    pacman -S --noconfirm --needed "${depends[@]}" "${makedepends[@]}"
+)
+
+sed -i 's/-march=x86-64 /-march=x86-64-v3 /' /etc/makepkg.conf
+git config --system --add safe.directory '*'
+
+useradd -m builder
+mkdir -p "$build_dir" "$out_dir" "$CCACHE_DIR"
+cp "$source_dir/.github/arch/PKGBUILD" "$build_dir/"
+chown -R builder "$build_dir" "$CCACHE_DIR"
+
+cd "$build_dir"
+sudo -u builder \
+    --preserve-env=CCACHE_DIR,CCACHE_MAXSIZE,MIXXX_OPTIMIZE,MIXXX_SOURCE,QT_QPA_PLATFORM \
+    makepkg -f --noconfirm
+
+cp mixxx-git-r*-x86_64.pkg.tar.zst "$out_dir/mixxx-git-x86_64.pkg.tar.zst"
+cp mixxx-git-debug-r*-x86_64.pkg.tar.zst "$out_dir/mixxx-git-debug-x86_64.pkg.tar.zst"
+ls mixxx-git-r*-x86_64.pkg.tar.zst | sed -E 's/mixxx-git-(r[0-9]+-[0-9]+)-x86_64.pkg.tar.zst/\1/' \
+        > "$out_dir/version"
