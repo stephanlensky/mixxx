@@ -13,7 +13,7 @@ pacman -Syu --noconfirm --needed ccache git
     pacman -S --noconfirm --needed "${depends[@]}" "${makedepends[@]}"
 )
 
-sed -i 's/-march=x86-64 /-march=x86-64-v3 /; s/^OPTIONS=(\(.*\) lto)/OPTIONS=(\1 !lto)/' /etc/makepkg.conf
+sed -i 's/^OPTIONS=(\(.*\) lto)/OPTIONS=(\1 !lto)/' /etc/makepkg.conf
 grep -q '^OPTIONS=.* !lto)' /etc/makepkg.conf
 git config --system --add safe.directory '*'
 
@@ -25,7 +25,7 @@ sudo -u builder --preserve-env=CCACHE_DIR ccache -z
 
 cd "$build_dir"
 sudo -u builder \
-    --preserve-env=CCACHE_DIR,CCACHE_MAXSIZE,MIXXX_OPTIMIZE,MIXXX_SOURCE,QT_QPA_PLATFORM \
+    --preserve-env=CCACHE_DIR,CCACHE_MAXSIZE,MIXXX_SOURCE,QT_QPA_PLATFORM \
     makepkg -f --noconfirm
 
 cp mixxx-git-r*-x86_64.pkg.tar.zst "$out_dir/mixxx-git-x86_64.pkg.tar.zst"

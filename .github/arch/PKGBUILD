@@ -89,9 +89,9 @@ build() {
 		-D CMAKE_BUILD_TYPE=RelWithDebInfo
 		-D CMAKE_INSTALL_PREFIX=/usr
 		-D BUILD_BENCH=OFF
-		-D OPTIMIZE="${MIXXX_OPTIMIZE:-native}"
+		-D OPTIMIZE=portable
 		-D CCACHE_SUPPORT="${ccache_support}"
-		-D CMAKE_C_FLAGS='-O2'
+		-D CMAKE_C_FLAGS='-O2 -march=x86-64-v3'
 		-D CMAKE_C_FLAGS_RELEASE='-DNDEBUG'
 		-D CMAKE_C_FLAGS_RELWITHDEBINFO='-g -DNDEBUG'
 		-D PIPEWIRE=ON
@@ -102,6 +102,7 @@ build() {
 		-W no-author
 	)
 
+	export CXXFLAGS="${CXXFLAGS/-march=x86-64 /-march=x86-64-v3 }"
 	export QT_NO_PRIVATE_MODULE_WARNING=ON
 	cmake "${cmake_options[@]}"
 	cmake --build build --parallel "$(nproc)" --target mixxx
