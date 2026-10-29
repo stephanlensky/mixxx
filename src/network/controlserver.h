@@ -21,12 +21,12 @@ namespace mixxx {
 
 class Beats;
 
-/// Streams deck state as newline-delimited JSON to clients of a local socket.
-class DeckStateServer : public QObject {
+/// Streams deck state and accepts commands as newline-delimited JSON over a local socket.
+class ControlServer : public QObject {
     Q_OBJECT
   public:
-    explicit DeckStateServer(const QString& socketPath, QObject* pParent = nullptr);
-    ~DeckStateServer() override;
+    explicit ControlServer(const QString& socketPath, QObject* pParent = nullptr);
+    ~ControlServer() override;
 
     static QString getSocketPath(const UserSettingsPointer& pConfig);
 
@@ -64,6 +64,8 @@ class DeckStateServer : public QObject {
     void send(const QJsonObject& message);
     void sendTo(QLocalSocket* pSocket, const QJsonObject& message);
     void removeSocket(QLocalSocket* pSocket);
+    void readCommands(QLocalSocket* pSocket);
+    void handleCommand(const QJsonObject& command);
 
     const QString m_socketPath;
     const std::unique_ptr<ControlPushButton> m_pEnabled;
@@ -73,6 +75,7 @@ class DeckStateServer : public QObject {
     PollingControlProxy m_numDecks;
     PollingControlProxy m_crossfader;
     PollingControlProxy m_outputLatency;
+    PollingControlProxy m_mainGain;
     std::vector<std::unique_ptr<DeckControls>> m_decks;
 };
 

@@ -118,6 +118,38 @@
     </widget>
    </item>
    <item row="1" column="0">
+    <widget class="QGroupBox" name="groupBox_controlServer">
+     <property name="title">
+      <string>Control Socket</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_controlServer">
+      <item>
+       <widget class="QCheckBox" name="checkBox_controlServer">
+        <property name="text">
+         <string>Enable Control Socket</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="txt_controlServer">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Ignored" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="2" column="0">
     <widget class="QGroupBox" name="groupBox_mappings">
      <property name="title">
       <string>Mappings</string>
@@ -171,7 +203,7 @@
      </layout>
     </widget>
    </item>
-   <item row="2" column="0">
+   <item row="3" column="0">
     <widget class="QGroupBox" name="groupBox_3">
      <property name="title">
       <string>Resources</string>
@@ -208,7 +240,7 @@
      </layout>
     </widget>
    </item>
-   <item row="3" column="0">
+   <item row="4" column="0">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -225,6 +257,7 @@
  </widget>
  <tabstops>
   checkBox_midithrough
+  checkBox_controlServer
   btnOpenUserMappings
  </tabstops>
  <resources/>

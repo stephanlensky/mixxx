@@ -682,32 +682,6 @@ Faster backspins run out longer, slower ones shorter.</string>
     </widget>
    </item>
    <item row="3" column="0">
-    <widget class="QGroupBox" name="groupBoxDeckStateServer">
-     <property name="title">
-      <string>Deck state server</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayoutDeckStateServer">
-      <item>
-       <widget class="QCheckBox" name="checkBoxDeckStateServer">
-        <property name="toolTip">
-         <string>Streams the loaded tracks, tempo and beat position of each deck as newline-delimited JSON to applications connected to a local socket, for example to drive lighting or visuals.</string>
-        </property>
-        <property name="text">
-         <string>Share deck state with local applications</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="labelDeckStateServerSocket">
-        <property name="textInteractionFlags">
-         <set>Qt::TextSelectableByMouse</set>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="4" column="0">
     <spacer name="verticalSpacer2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -749,7 +723,6 @@ Faster backspins run out longer, slower ones shorter.</string>
   <tabstop>spinBoxPermanentRateCoarse</tabstop>
   <tabstop>checkBoxBackspinMomentum</tabstop>
   <tabstop>spinBoxBackspinMomentumTime</tabstop>
-  <tabstop>checkBoxDeckStateServer</tabstop>
  </tabstops>
  <resources/>
  <buttongroups>

@@ -1,4 +1,4 @@
-#include "network/deckstateserver.h"
+#include "network/controlserver.h"
 
 #include <QDateTime>
 #include <QJsonArray>
@@ -10,7 +10,7 @@
 #include "control/controlpushbutton.h"
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
-#include "moc_deckstateserver.cpp"
+#include "moc_controlserver.cpp"
 #include "track/beats.h"
 #include "track/track.h"
 #include "util/logger.h"
@@ -19,18 +19,19 @@ namespace mixxx {
 
 namespace {
 
-const Logger kLogger("DeckStateServer");
+const Logger kLogger("ControlServer");
 
-const QString kConfigGroup = QStringLiteral("[DeckStateServer]");
+const QString kConfigGroup = QStringLiteral("[ControlServer]");
 const ConfigKey kEnabledKey = ConfigKey(kConfigGroup, QStringLiteral("enabled"));
 const ConfigKey kSocketPathKey = ConfigKey(kConfigGroup, QStringLiteral("SocketPath"));
-const QString kSocketFileName = QStringLiteral("mixxx-deck-state.sock");
+const QString kSocketFileName = QStringLiteral("mixxx-control.sock");
 
 const QString kAppGroup = QStringLiteral("[App]");
 const QString kMainGroup = QStringLiteral("[Master]");
 
 constexpr int kUpdateIntervalMillis = 50;
 constexpr qint64 kMaxPendingBytes = 1 << 20;
+constexpr qint64 kMaxCommandBytes = 1 << 16;
 
 QJsonValue getTrackJson(const TrackPointer& pTrack) {
     if (!pTrack) {
@@ -68,7 +69,7 @@ QString getOrientationName(double orientation) {
 
 } // namespace
 
-DeckStateServer::DeckControls::DeckControls(const QString& group)
+ControlServer::DeckControls::DeckControls(const QString& group)
         : group(group),
           play(group, QStringLiteral("play")),
           bpm(group, QStringLiteral("bpm")),
@@ -79,34 +80,35 @@ DeckStateServer::DeckControls::DeckControls(const QString& group)
           orientation(group, QStringLiteral("orientation")) {
 }
 
-DeckStateServer::DeckStateServer(const QString& socketPath, QObject* pParent)
+ControlServer::ControlServer(const QString& socketPath, QObject* pParent)
         : QObject(pParent),
           m_socketPath(socketPath),
           m_pEnabled(std::make_unique<ControlPushButton>(kEnabledKey, true)),
           m_pServer(new QLocalServer(this)),
           m_numDecks(kAppGroup, QStringLiteral("num_decks")),
           m_crossfader(kMainGroup, QStringLiteral("crossfader")),
-          m_outputLatency(kAppGroup, QStringLiteral("output_latency_ms")) {
+          m_outputLatency(kAppGroup, QStringLiteral("output_latency_ms")),
+          m_mainGain(kMainGroup, QStringLiteral("gain")) {
     m_pEnabled->setButtonMode(control::ButtonMode::Toggle);
     connect(m_pEnabled.get(),
             &ControlObject::valueChanged,
             this,
-            &DeckStateServer::slotEnabledChanged);
+            &ControlServer::slotEnabledChanged);
     m_timer.setInterval(kUpdateIntervalMillis);
-    connect(&m_timer, &QTimer::timeout, this, &DeckStateServer::slotUpdate);
-    connect(m_pServer, &QLocalServer::newConnection, this, &DeckStateServer::slotNewConnection);
+    connect(&m_timer, &QTimer::timeout, this, &ControlServer::slotUpdate);
+    connect(m_pServer, &QLocalServer::newConnection, this, &ControlServer::slotNewConnection);
     connect(&PlayerInfo::instance(),
             &PlayerInfo::trackChanged,
             this,
-            &DeckStateServer::slotTrackChanged);
+            &ControlServer::slotTrackChanged);
     slotEnabledChanged(m_pEnabled->get());
 }
 
-DeckStateServer::~DeckStateServer() {
+ControlServer::~ControlServer() {
     close();
 }
 
-QString DeckStateServer::getSocketPath(const UserSettingsPointer& pConfig) {
+QString ControlServer::getSocketPath(const UserSettingsPointer& pConfig) {
     const QString socketPath = pConfig->getValueString(kSocketPathKey);
     if (!socketPath.isEmpty()) {
         return socketPath;
@@ -115,7 +117,7 @@ QString DeckStateServer::getSocketPath(const UserSettingsPointer& pConfig) {
             QChar('/') + kSocketFileName;
 }
 
-std::optional<double> DeckStateServer::getBeatPosition(
+std::optional<double> ControlServer::getBeatPosition(
         const Beats& beats, audio::FramePos position) {
     if (!position.isValid()) {
         return std::nullopt;
@@ -130,11 +132,11 @@ std::optional<double> DeckStateServer::getBeatPosition(
     return nextBeatNumber - 1 + (position - *prevBeat) / (*nextBeat - *prevBeat);
 }
 
-bool DeckStateServer::isListening() const {
+bool ControlServer::isListening() const {
     return m_pServer->isListening();
 }
 
-void DeckStateServer::slotEnabledChanged(double value) {
+void ControlServer::slotEnabledChanged(double value) {
     if (value > 0) {
         listen();
     } else {
@@ -142,7 +144,7 @@ void DeckStateServer::slotEnabledChanged(double value) {
     }
 }
 
-void DeckStateServer::listen() {
+void ControlServer::listen() {
     if (m_pServer->isListening()) {
         return;
     }
@@ -154,7 +156,7 @@ void DeckStateServer::listen() {
     }
 }
 
-void DeckStateServer::close() {
+void ControlServer::close() {
     m_timer.stop();
     const auto sockets = m_sockets;
     m_sockets.clear();
@@ -169,14 +171,14 @@ void DeckStateServer::close() {
     }
 }
 
-void DeckStateServer::slotNewConnection() {
+void ControlServer::slotNewConnection() {
     updateDeckControls();
     while (QLocalSocket* pSocket = m_pServer->nextPendingConnection()) {
         connect(pSocket, &QLocalSocket::disconnected, this, [this, pSocket]() {
             removeSocket(pSocket);
         });
-        connect(pSocket, &QLocalSocket::readyRead, pSocket, [pSocket]() {
-            pSocket->readAll();
+        connect(pSocket, &QLocalSocket::readyRead, this, [this, pSocket]() {
+            readCommands(pSocket);
         });
         m_sockets.append(pSocket);
         for (const auto& pDeck : m_decks) {
@@ -191,7 +193,7 @@ void DeckStateServer::slotNewConnection() {
     }
 }
 
-void DeckStateServer::slotTrackChanged(
+void ControlServer::slotTrackChanged(
         const QString& group, TrackPointer pNewTrack, TrackPointer pOldTrack) {
     Q_UNUSED(pOldTrack);
     if (m_sockets.isEmpty() || !PlayerManager::isDeckGroup(group)) {
@@ -200,12 +202,49 @@ void DeckStateServer::slotTrackChanged(
     send(getTrackMessage(group, pNewTrack));
 }
 
-void DeckStateServer::slotUpdate() {
+void ControlServer::slotUpdate() {
     updateDeckControls();
     send(getDecksMessage());
 }
 
-void DeckStateServer::updateDeckControls() {
+void ControlServer::readCommands(QLocalSocket* pSocket) {
+    while (pSocket->canReadLine()) {
+        const QByteArray line = pSocket->readLine().trimmed();
+        if (line.isEmpty()) {
+            continue;
+        }
+        QJsonParseError error;
+        const QJsonDocument document = QJsonDocument::fromJson(line, &error);
+        if (!document.isObject()) {
+            kLogger.warning() << "Ignoring invalid command" << error.errorString();
+            continue;
+        }
+        handleCommand(document.object());
+    }
+    if (pSocket->bytesAvailable() > kMaxCommandBytes) {
+        kLogger.warning() << "Disconnecting client that sent an oversized command";
+        pSocket->abort();
+    }
+}
+
+void ControlServer::handleCommand(const QJsonObject& command) {
+    const QString type = command.value(QStringLiteral("type")).toString();
+    if (type != QStringLiteral("setMainGain")) {
+        kLogger.warning() << "Ignoring unknown command" << type;
+        return;
+    }
+    const QJsonValue value = command.value(QStringLiteral("value"));
+    const QJsonValue parameter = command.value(QStringLiteral("parameter"));
+    if (value.isDouble()) {
+        m_mainGain.set(value.toDouble());
+    } else if (parameter.isDouble()) {
+        m_mainGain.setParameter(parameter.toDouble());
+    } else {
+        kLogger.warning() << "Ignoring setMainGain without a numeric value or parameter";
+    }
+}
+
+void ControlServer::updateDeckControls() {
     const auto numDecks = static_cast<std::size_t>(std::max(0.0, m_numDecks.get()));
     while (m_decks.size() < numDecks) {
         m_decks.push_back(std::make_unique<DeckControls>(
@@ -214,7 +253,7 @@ void DeckStateServer::updateDeckControls() {
     m_decks.resize(numDecks);
 }
 
-QJsonObject DeckStateServer::getDeckJson(const DeckControls& controls) const {
+QJsonObject ControlServer::getDeckJson(const DeckControls& controls) const {
     const auto position = audio::FramePos::fromEngineSamplePos(
             controls.playPosition.get() * controls.trackSamples.get());
     const double sampleRate = controls.trackSampleRate.get();
@@ -242,7 +281,7 @@ QJsonObject DeckStateServer::getDeckJson(const DeckControls& controls) const {
     };
 }
 
-QJsonObject DeckStateServer::getDecksMessage() const {
+QJsonObject ControlServer::getDecksMessage() const {
     QJsonArray decks;
     for (const auto& pDeck : m_decks) {
         decks.append(getDeckJson(*pDeck));
@@ -252,18 +291,19 @@ QJsonObject DeckStateServer::getDecksMessage() const {
             {QStringLiteral("time"), QDateTime::currentMSecsSinceEpoch()},
             {QStringLiteral("outputLatency"), m_outputLatency.get()},
             {QStringLiteral("crossfader"), m_crossfader.get()},
+            {QStringLiteral("mainGain"), m_mainGain.get()},
             {QStringLiteral("decks"), decks},
     };
 }
 
-void DeckStateServer::send(const QJsonObject& message) {
+void ControlServer::send(const QJsonObject& message) {
     const auto sockets = m_sockets;
     for (QLocalSocket* pSocket : sockets) {
         sendTo(pSocket, message);
     }
 }
 
-void DeckStateServer::sendTo(QLocalSocket* pSocket, const QJsonObject& message) {
+void ControlServer::sendTo(QLocalSocket* pSocket, const QJsonObject& message) {
     if (pSocket->bytesToWrite() > kMaxPendingBytes) {
         kLogger.warning() << "Disconnecting client that stopped reading";
         pSocket->abort();
@@ -272,7 +312,7 @@ void DeckStateServer::sendTo(QLocalSocket* pSocket, const QJsonObject& message) 
     pSocket->write(QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n');
 }
 
-void DeckStateServer::removeSocket(QLocalSocket* pSocket) {
+void ControlServer::removeSocket(QLocalSocket* pSocket) {
     m_sockets.removeOne(pSocket);
     pSocket->deleteLater();
     if (m_sockets.isEmpty()) {

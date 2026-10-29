@@ -1,4 +1,4 @@
-#include "network/deckstateserver.h"
+#include "network/controlserver.h"
 
 #include <gtest/gtest.h>
 
@@ -10,11 +10,13 @@
 #include <QLocalSocket>
 #include <QTemporaryDir>
 
+#include "control/controlaudiotaperpot.h"
 #include "control/controlobject.h"
 #include "mixer/playerinfo.h"
 #include "test/mixxxtest.h"
 #include "track/beats.h"
 #include "track/track.h"
+#include "util/math.h"
 
 using namespace mixxx;
 
@@ -25,26 +27,27 @@ constexpr auto kSampleRate = audio::SampleRate(48000);
 constexpr auto kFirstBeat = audio::FramePos(400);
 constexpr double kBeatLength = 24000;
 const QString kGroup = QStringLiteral("[Channel1]");
+const ConfigKey kMainGainKey = ConfigKey(QStringLiteral("[Master]"), QStringLiteral("gain"));
 
-TEST(DeckStateServerBeatTest, ConstTempo) {
+TEST(ControlServerBeatTest, ConstTempo) {
     const auto beats = Beats(kFirstBeat, kBpm, kSampleRate, QString());
-    EXPECT_DOUBLE_EQ(0.0, *DeckStateServer::getBeatPosition(beats, kFirstBeat));
+    EXPECT_DOUBLE_EQ(0.0, *ControlServer::getBeatPosition(beats, kFirstBeat));
     EXPECT_DOUBLE_EQ(0.5,
-            *DeckStateServer::getBeatPosition(beats, kFirstBeat + kBeatLength / 2));
+            *ControlServer::getBeatPosition(beats, kFirstBeat + kBeatLength / 2));
     EXPECT_DOUBLE_EQ(3.0,
-            *DeckStateServer::getBeatPosition(beats, kFirstBeat + 3 * kBeatLength));
+            *ControlServer::getBeatPosition(beats, kFirstBeat + 3 * kBeatLength));
     EXPECT_DOUBLE_EQ(1.0 - 400 / kBeatLength,
-            *DeckStateServer::getBeatPosition(beats, kFirstBeat + kBeatLength - 400));
+            *ControlServer::getBeatPosition(beats, kFirstBeat + kBeatLength - 400));
 }
 
-TEST(DeckStateServerBeatTest, CountsFromFirstBeatAfterTrackStart) {
+TEST(ControlServerBeatTest, CountsFromFirstBeatAfterTrackStart) {
     const auto beats = Beats(kFirstBeat + 10 * kBeatLength, kBpm, kSampleRate, QString());
-    EXPECT_DOUBLE_EQ(0.0, *DeckStateServer::getBeatPosition(beats, kFirstBeat));
+    EXPECT_DOUBLE_EQ(0.0, *ControlServer::getBeatPosition(beats, kFirstBeat));
     EXPECT_DOUBLE_EQ(10.25,
-            *DeckStateServer::getBeatPosition(beats, kFirstBeat + 10.25 * kBeatLength));
+            *ControlServer::getBeatPosition(beats, kFirstBeat + 10.25 * kBeatLength));
 }
 
-TEST(DeckStateServerBeatTest, NonConstTempo) {
+TEST(ControlServerBeatTest, NonConstTempo) {
     const auto beats = Beats(
             std::vector<BeatMarker>{BeatMarker{kFirstBeat, 8}},
             kFirstBeat + 8 * kBeatLength,
@@ -52,18 +55,18 @@ TEST(DeckStateServerBeatTest, NonConstTempo) {
             kSampleRate,
             QString());
     EXPECT_DOUBLE_EQ(7.5,
-            *DeckStateServer::getBeatPosition(beats, kFirstBeat + 7.5 * kBeatLength));
+            *ControlServer::getBeatPosition(beats, kFirstBeat + 7.5 * kBeatLength));
     EXPECT_DOUBLE_EQ(8.5,
-            *DeckStateServer::getBeatPosition(
+            *ControlServer::getBeatPosition(
                     beats, kFirstBeat + 8 * kBeatLength + kBeatLength));
 }
 
-TEST(DeckStateServerBeatTest, InvalidPosition) {
+TEST(ControlServerBeatTest, InvalidPosition) {
     const auto beats = Beats(kFirstBeat, kBpm, kSampleRate, QString());
-    EXPECT_FALSE(DeckStateServer::getBeatPosition(beats, audio::kInvalidFramePos));
+    EXPECT_FALSE(ControlServer::getBeatPosition(beats, audio::kInvalidFramePos));
 }
 
-class DeckStateServerTest : public MixxxTest {
+class ControlServerTest : public MixxxTest {
   protected:
     void SetUp() override {
         addControl(QStringLiteral("[App]"), QStringLiteral("num_decks"), 1);
@@ -77,10 +80,12 @@ class DeckStateServerTest : public MixxxTest {
         addControl(kGroup, QStringLiteral("volume"), 1);
         addControl(kGroup, QStringLiteral("pregain"), 1);
         addControl(kGroup, QStringLiteral("orientation"), 0);
+        m_controls.push_back(std::make_unique<ControlAudioTaperPot>(kMainGainKey, -14, 14, 0.5));
+        m_controls.back()->set(1);
         PlayerInfo::create();
 
         ASSERT_TRUE(m_socketDir.isValid());
-        m_pServer = std::make_unique<DeckStateServer>(getSocketPath());
+        m_pServer = std::make_unique<ControlServer>(getSocketPath());
         EXPECT_FALSE(m_pServer->isListening());
         setEnabled(true);
         ASSERT_TRUE(m_pServer->isListening());
@@ -98,12 +103,12 @@ class DeckStateServerTest : public MixxxTest {
     }
 
     void setEnabled(bool enabled) {
-        ControlObject::set(ConfigKey(QStringLiteral("[DeckStateServer]"), QStringLiteral("enabled")),
+        ControlObject::set(ConfigKey(QStringLiteral("[ControlServer]"), QStringLiteral("enabled")),
                 enabled ? 1.0 : 0.0);
     }
 
     QString getSocketPath() const {
-        return m_socketDir.filePath(QStringLiteral("deck-state.sock"));
+        return m_socketDir.filePath(QStringLiteral("control.sock"));
     }
 
     TrackPointer loadTrack() {
@@ -132,6 +137,20 @@ class DeckStateServerTest : public MixxxTest {
         return QJsonDocument::fromJson(pSocket->readLine()).object();
     }
 
+    void sendCommand(QLocalSocket* pSocket, const QByteArray& command) {
+        pSocket->write(command + '\n');
+        ASSERT_TRUE(pSocket->waitForBytesWritten(1000));
+    }
+
+    void waitForMainGain(double value) {
+        QElapsedTimer timer;
+        timer.start();
+        while (ControlObject::get(kMainGainKey) != value && timer.elapsed() < 2000) {
+            QCoreApplication::processEvents();
+        }
+        EXPECT_DOUBLE_EQ(value, ControlObject::get(kMainGainKey));
+    }
+
     QJsonObject readMessage(QLocalSocket* pSocket, const QString& type) {
         for (int i = 0; i < 10; ++i) {
             const QJsonObject message = readMessage(pSocket);
@@ -145,10 +164,10 @@ class DeckStateServerTest : public MixxxTest {
 
     std::vector<std::unique_ptr<ControlObject>> m_controls;
     QTemporaryDir m_socketDir;
-    std::unique_ptr<DeckStateServer> m_pServer;
+    std::unique_ptr<ControlServer> m_pServer;
 };
 
-TEST_F(DeckStateServerTest, SendsSnapshotOnConnect) {
+TEST_F(ControlServerTest, SendsSnapshotOnConnect) {
     loadTrack();
     ControlObject::set(ConfigKey(kGroup, QStringLiteral("playposition")),
             (kFirstBeat.value() + 2.5 * kBeatLength) / (180 * kSampleRate.value()));
@@ -167,6 +186,7 @@ TEST_F(DeckStateServerTest, SendsSnapshotOnConnect) {
     EXPECT_EQ(QStringLiteral("decks"), decks.value(QStringLiteral("type")).toString());
     EXPECT_DOUBLE_EQ(12, decks.value(QStringLiteral("outputLatency")).toDouble());
     EXPECT_DOUBLE_EQ(-0.5, decks.value(QStringLiteral("crossfader")).toDouble());
+    EXPECT_DOUBLE_EQ(1, decks.value(QStringLiteral("mainGain")).toDouble());
     const QJsonObject deck = decks.value(QStringLiteral("decks")).toArray().at(0).toObject();
     EXPECT_EQ(kGroup, deck.value(QStringLiteral("group")).toString());
     EXPECT_TRUE(deck.value(QStringLiteral("play")).toBool());
@@ -178,7 +198,7 @@ TEST_F(DeckStateServerTest, SendsSnapshotOnConnect) {
     EXPECT_EQ(QStringLiteral("left"), deck.value(QStringLiteral("orientation")).toString());
 }
 
-TEST_F(DeckStateServerTest, SendsTrackChanges) {
+TEST_F(ControlServerTest, SendsTrackChanges) {
     QLocalSocket socket;
     socket.connectToServer(getSocketPath());
     ASSERT_TRUE(socket.waitForConnected(1000));
@@ -201,7 +221,7 @@ TEST_F(DeckStateServerTest, SendsTrackChanges) {
     EXPECT_TRUE(ejected.value(QStringLiteral("track")).isNull());
 }
 
-TEST_F(DeckStateServerTest, DisablingDisconnectsClients) {
+TEST_F(ControlServerTest, DisablingDisconnectsClients) {
     QLocalSocket socket;
     socket.connectToServer(getSocketPath());
     ASSERT_TRUE(socket.waitForConnected(1000));
@@ -221,6 +241,30 @@ TEST_F(DeckStateServerTest, DisablingDisconnectsClients) {
     reconnected.connectToServer(getSocketPath());
     ASSERT_TRUE(reconnected.waitForConnected(1000));
     readMessage(&reconnected, QStringLiteral("decks"));
+}
+
+TEST_F(ControlServerTest, SetsMainGain) {
+    QLocalSocket socket;
+    socket.connectToServer(getSocketPath());
+    ASSERT_TRUE(socket.waitForConnected(1000));
+    readMessage(&socket, QStringLiteral("decks"));
+
+    sendCommand(&socket, R"({"type":"setMainGain","value":0.5})");
+    waitForMainGain(0.5);
+
+    sendCommand(&socket, R"({"type":"setMainGain","parameter":0.5})");
+    waitForMainGain(1);
+
+    sendCommand(&socket, "not json");
+    sendCommand(&socket, R"({"type":"unknown","value":0.25})");
+    sendCommand(&socket, R"({"type":"setMainGain","value":100})");
+    waitForMainGain(db2ratio(14.0));
+
+    readMessage(&socket, QStringLiteral("decks"));
+    EXPECT_DOUBLE_EQ(ControlObject::get(kMainGainKey),
+            readMessage(&socket, QStringLiteral("decks"))
+                    .value(QStringLiteral("mainGain"))
+                    .toDouble());
 }
 
 } // namespace

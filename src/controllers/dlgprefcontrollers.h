@@ -64,4 +64,5 @@ class DlgPrefControllers : public DlgPreferencePage, public Ui::DlgPrefControlle
 
     const parented_ptr<ControlProxy> m_pNumDecks;
     const parented_ptr<ControlProxy> m_pNumSamplers;
+    const parented_ptr<ControlProxy> m_pControlServerEnabled;
 };

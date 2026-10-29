@@ -31,7 +31,7 @@
 #include "mixer/playerinfo.h"
 #include "mixer/playermanager.h"
 #include "moc_coreservices.cpp"
-#include "network/deckstateserver.h"
+#include "network/controlserver.h"
 #include "preferences/dialog/dlgpreferences.h"
 #include "preferences/settingsmanager.h"
 #ifdef __MODPLUG__
@@ -611,8 +611,8 @@ void CoreServices::initialize(QApplication* pApp) {
             m_pScreensaverManager.get(),
             &ScreensaverManager::slotCurrentPlayingDeckChanged);
 
-    m_pDeckStateServer = std::make_unique<DeckStateServer>(
-            DeckStateServer::getSocketPath(pConfig));
+    m_pControlServer = std::make_unique<ControlServer>(
+            ControlServer::getSocketPath(pConfig));
 
     emit initializationProgressUpdate(50, tr("library"));
     CoverArtCache::createInstance();
@@ -934,7 +934,7 @@ void CoreServices::finalize() {
 #endif
     ControllerScriptEngineBase::registerPlayerManager(nullptr);
 
-    m_pDeckStateServer.reset();
+    m_pControlServer.reset();
 
     // Stop all pending library operations
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "stopping pending Library tasks";

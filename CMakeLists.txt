@@ -1555,7 +1555,7 @@ add_library(
   src/musicbrainz/web/coverartarchivelinkstask.cpp
   src/musicbrainz/web/musicbrainzrecordingstask.cpp
   src/nativeeventhandlerwin.cpp
-  src/network/deckstateserver.cpp
+  src/network/controlserver.cpp
   src/network/jsonwebtask.cpp
   src/network/networktask.cpp
   src/network/webtask.cpp
@@ -2956,6 +2956,7 @@ if(BUILD_TESTING)
     src/test/controlobjectaliastest.cpp
     src/test/controlobjectscripttest.cpp
     src/test/controlpotmetertest.cpp
+    src/test/controlserver_test.cpp
     src/test/coreservicestest.cpp
     src/test/coverartcache_test.cpp
     src/test/coverartutils_test.cpp
@@ -2965,7 +2966,6 @@ if(BUILD_TESTING)
     src/test/delayringtest.cpp
     src/test/dbconnectionpool_test.cpp
     src/test/dbidtest.cpp
-    src/test/deckstateserver_test.cpp
     src/test/directorydaotest.cpp
     src/test/duration_test.cpp
     src/test/durationutiltest.cpp

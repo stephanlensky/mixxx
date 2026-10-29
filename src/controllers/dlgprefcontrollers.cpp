@@ -7,6 +7,7 @@
 #include "controllers/dlgprefcontroller.h"
 #include "defs_urls.h"
 #include "moc_dlgprefcontrollers.cpp"
+#include "network/controlserver.h"
 #include "preferences/dialog/dlgpreferences.h"
 #include "util/desktophelper.h"
 #include "util/string.h"
@@ -27,7 +28,12 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
           m_pNumDecks(make_parented<ControlProxy>(
                   kAppGroup, QStringLiteral("num_decks"), this)),
           m_pNumSamplers(make_parented<ControlProxy>(
-                  kAppGroup, QStringLiteral("num_samplers"), this)) {
+                  kAppGroup, QStringLiteral("num_samplers"), this)),
+          m_pControlServerEnabled(make_parented<ControlProxy>(
+                  QStringLiteral("[ControlServer]"),
+                  QStringLiteral("enabled"),
+                  this,
+                  ControlFlag::AllowMissingOrInvalid)) {
     setupUi(this);
     // Create text color for the cue mode link "?" to the manual
     createLinkColor();
@@ -69,6 +75,13 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
     checkBox_midithrough->hide();
     txt_midithrough->hide();
 #endif
+
+    txt_controlServer->setText(
+            tr("Lets local applications receive the loaded tracks, tempo and "
+               "beat position of each deck and set the main gain by exchanging "
+               "newline-delimited JSON over a socket, for example to drive "
+               "lighting or visuals.\nSocket: %1")
+                    .arg(mixxx::ControlServer::getSocketPath(m_pConfig)));
 
     // Setting the description text here instead of in the ui file allows to paste
     // a formatted link (text color is a more readable blend of text color and original link color).
@@ -117,6 +130,7 @@ void DlgPrefControllers::openLocalFile(const QString& file) {
 }
 
 void DlgPrefControllers::slotUpdate() {
+    checkBox_controlServer->setChecked(m_pControlServerEnabled->toBool());
 }
 
 void DlgPrefControllers::slotCancel() {
@@ -126,12 +140,14 @@ void DlgPrefControllers::slotCancel() {
 }
 
 void DlgPrefControllers::slotApply() {
+    m_pControlServerEnabled->set(checkBox_controlServer->isChecked() ? 1.0 : 0.0);
     for (DlgPrefController* pControllerDlg : std::as_const(m_controllerPages)) {
         pControllerDlg->slotApply();
     }
 }
 
 void DlgPrefControllers::slotResetToDefaults() {
+    checkBox_controlServer->setChecked(false);
     for (DlgPrefController* pControllerDlg : std::as_const(m_controllerPages)) {
         pControllerDlg->slotResetToDefaults();
     }
