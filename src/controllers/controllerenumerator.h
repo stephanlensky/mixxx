@@ -2,6 +2,7 @@
 
 #include <QList>
 #include <QObject>
+#include <QStringList>
 
 class Controller;
 
@@ -18,4 +19,9 @@ class ControllerEnumerator : public QObject {
     virtual ~ControllerEnumerator();
 
     virtual QList<Controller*> queryDevices() = 0;
+
+    /// Must not touch the Controller instances returned by queryDevices().
+    virtual QStringList getConnectedDeviceIds() {
+        return {};
+    }
 };

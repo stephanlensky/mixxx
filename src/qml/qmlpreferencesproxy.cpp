@@ -619,6 +619,11 @@ QmlControllerManagerProxy::QmlControllerManagerProxy(
     refreshKnownDevices();
 
     connect(m_pControllerManager.get(),
+            &ControllerManager::devicesAboutToChange,
+            this,
+            &QmlControllerManagerProxy::clearKnownDevices,
+            Qt::DirectConnection);
+    connect(m_pControllerManager.get(),
             &ControllerManager::devicesChanged,
             this,
             &QmlControllerManagerProxy::refreshKnownDevices);
@@ -672,6 +677,17 @@ void QmlControllerManagerProxy::refreshMappings() {
     loadMappingFromEnumerator(m_pControllerManager->getMainThreadSystemMappingEnumerator());
     loadMappingFromEnumerator(m_pControllerManager->getMainThreadUserMappingEnumerator());
 }
+void QmlControllerManagerProxy::clearKnownDevices() {
+    m_knownControllers.clear();
+    const auto devices = m_knownDevicesFound + m_unknownDevicesFound;
+    m_knownDevicesFound.clear();
+    m_unknownDevicesFound.clear();
+    emit deviceListChanged();
+    for (auto* pDevice : devices) {
+        pDevice->deleteLater();
+    }
+}
+
 void QmlControllerManagerProxy::refreshKnownDevices() {
     const auto controllers = m_pControllerManager->getControllers();
     for (auto* pController : std::as_const(controllers)) {

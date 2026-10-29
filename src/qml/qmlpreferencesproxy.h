@@ -362,6 +362,7 @@ class QmlControllerManagerProxy : public QObject {
     }
 
   private slots:
+    void clearKnownDevices();
     void refreshKnownDevices();
     void refreshMappings();
     void loadNewMapping(mixxx::qml::QmlControllerDeviceProxy::Type type,

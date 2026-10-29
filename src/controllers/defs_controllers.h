@@ -27,6 +27,9 @@ inline QString userMappingsPath(UserSettingsPointer pConfig) {
 #define BULK_MAPPING_EXTENSION ".bulk.xml"
 #define XML_SCHEMA_VERSION "1"
 
+const ConfigKey kDetectDevicesCfgKey =
+        ConfigKey(QStringLiteral("[Controller]"), QStringLiteral("detect_devices_enabled"));
+
 #ifdef __PORTMIDI__
 const auto kMidiThroughPortPrefix = QLatin1String("MIDI Through Port");
 const ConfigKey kMidiThroughCfgKey =

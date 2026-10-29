@@ -71,6 +71,43 @@
       </item>
 
       <item>
+       <widget class="QCheckBox" name="checkBox_detectDevices">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Detect controllers when they are plugged in or removed</string>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QLabel" name="txt_detectDevices">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Ignored" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>100</width>
+          <height>10</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>When a controller is plugged in or removed, all enabled controllers are reopened and their mappings restarted. Unapplied controller settings are discarded.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+
+      <item>
        <widget class="Line" name="line_midithrough">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -256,6 +293,7 @@
   </layout>
  </widget>
  <tabstops>
+  checkBox_detectDevices
   checkBox_midithrough
   checkBox_controlServer
   btnOpenUserMappings

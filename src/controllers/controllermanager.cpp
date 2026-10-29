@@ -44,6 +44,9 @@ const mixxx::Duration ControllerManager::kPollInterval = mixxx::Duration::fromMi
 const mixxx::Duration ControllerManager::kPollInterval = mixxx::Duration::fromMillis(1);
 #endif
 
+const mixxx::Duration ControllerManager::kDeviceDetectionInterval =
+        mixxx::Duration::fromMillis(2000);
+
 namespace {
 /// Strip slashes and spaces from device name, so that it can be used as config
 /// key or a filename.
@@ -99,6 +102,8 @@ ControllerManager::ControllerManager(UserSettingsPointer pConfig)
           m_pControllerLearningEventFilter(
                   std::make_unique<ControllerLearningEventFilter>()),
           m_pollTimer(this),
+          m_deviceDetectionTimer(this),
+          m_pMainThreadContext(std::make_unique<QObject>()),
           m_pThread(std::make_unique<QThread>()),
           m_skipPoll(false) {
     qRegisterMetaType<std::shared_ptr<LegacyControllerMapping>>(
@@ -113,6 +118,16 @@ ControllerManager::ControllerManager(UserSettingsPointer pConfig)
 
     m_pollTimer.setInterval(kPollInterval.toIntegerMillis());
     connect(&m_pollTimer, &QTimer::timeout, this, &ControllerManager::slotPollDevices);
+
+    m_deviceDetectionTimer.setInterval(kDeviceDetectionInterval.toIntegerMillis());
+    connect(&m_deviceDetectionTimer,
+            &QTimer::timeout,
+            this,
+            &ControllerManager::slotCheckConnectedDevices);
+    connect(this,
+            &ControllerManager::connectedDevicesChanged,
+            m_pMainThreadContext.get(),
+            [this]() { rescanDevices(); });
 
     m_pThread->setObjectName("ControllerManager");
 
@@ -189,6 +204,7 @@ void ControllerManager::slotInitialize() {
 void ControllerManager::slotShutdown() {
     DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
     stopPolling();
+    m_deviceDetectionTimer.stop();
 
     // Clear m_enumerators before deleting the enumerators to prevent other code
     // paths from accessing them during teardown.
@@ -208,9 +224,6 @@ void ControllerManager::slotShutdown() {
 
 void ControllerManager::updateControllerList() {
     DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
-    // NOTE: Currently this function is only called on startup. If hotplug is added, changes to the
-    // controller list must be synchronized with dlgprefcontrollers to avoid dangling connections
-    // and possible crashes.
     auto locker = lockMutex(&m_mutex);
     if (m_enumerators.empty()) {
         qWarning() << "updateControllerList called but no enumerators have been added!";
@@ -222,20 +235,62 @@ void ControllerManager::updateControllerList() {
     for (const auto& pEnumerator : m_enumerators) {
         enumerators.push_back(pEnumerator.get());
     }
+    m_controllers.clear();
     locker.unlock();
 
+    m_connectedDeviceIds = getConnectedDeviceIds();
     QList<Controller*> newDeviceList;
     for (ControllerEnumerator* pEnumerator : enumerators) {
         newDeviceList.append(pEnumerator->queryDevices());
     }
 
     locker.relock();
-    if (newDeviceList == m_controllers) {
-        return;
-    }
     m_controllers = std::move(newDeviceList);
     locker.unlock();
     emit devicesChanged();
+}
+
+QStringList ControllerManager::getConnectedDeviceIds() {
+    DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
+    QStringList deviceIds;
+    for (const auto& pEnumerator : m_enumerators) {
+        deviceIds.append(pEnumerator->getConnectedDeviceIds());
+    }
+    return deviceIds;
+}
+
+void ControllerManager::slotCheckConnectedDevices() {
+    DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
+    QStringList deviceIds = getConnectedDeviceIds();
+    if (deviceIds == m_connectedDeviceIds) {
+        return;
+    }
+    qInfo() << "ControllerManager: Connected devices changed, rescanning";
+    m_connectedDeviceIds = std::move(deviceIds);
+    emit connectedDevicesChanged();
+}
+
+void ControllerManager::slotUpdateDeviceDetection() {
+    DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
+    if (m_pConfig->getValue(kDetectDevicesCfgKey, false)) {
+        m_deviceDetectionTimer.start();
+    } else {
+        m_deviceDetectionTimer.stop();
+    }
+}
+
+void ControllerManager::setDeviceDetectionEnabled(bool enabled) {
+    m_pConfig->setValue(kDetectDevicesCfgKey, enabled);
+    QMetaObject::invokeMethod(this,
+            &ControllerManager::slotUpdateDeviceDetection,
+            Qt::QueuedConnection);
+}
+
+void ControllerManager::rescanDevices() {
+    emit devicesAboutToChange();
+    QMetaObject::invokeMethod(this,
+            &ControllerManager::slotSetUpDevices,
+            Qt::QueuedConnection);
 }
 
 QList<Controller*> ControllerManager::getControllers() const {
@@ -333,6 +388,7 @@ void ControllerManager::slotSetUpDevices() {
     }
 
     pollIfAnyControllersOpen();
+    slotUpdateDeviceDetection();
 }
 
 void ControllerManager::pollIfAnyControllersOpen() {

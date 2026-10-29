@@ -46,9 +46,19 @@ DlgPrefControllers::DlgPrefControllers(DlgPreferences* pPreferences,
 
     // Connections
     connect(m_pControllerManager.get(),
+            &ControllerManager::devicesAboutToChange,
+            this,
+            &DlgPrefControllers::destroyControllerWidgets,
+            Qt::DirectConnection);
+    connect(m_pControllerManager.get(),
             &ControllerManager::devicesChanged,
             this,
             &DlgPrefControllers::rescanControllers);
+
+    checkBox_detectDevices->setChecked(m_pConfig->getValue(kDetectDevicesCfgKey, false));
+    connect(checkBox_detectDevices, &QCheckBox::toggled, this, [this](bool checked) {
+        m_pControllerManager->setDeviceDetectionEnabled(checked);
+    });
 
 #ifdef __PORTMIDI__
     checkBox_midithrough->setChecked(m_pConfig->getValue(kMidiThroughCfgKey, false));
@@ -183,9 +193,6 @@ void DlgPrefControllers::rescanControllers() {
 }
 
 void DlgPrefControllers::destroyControllerWidgets() {
-    // NOTE: this assumes that the list of controllers does not change during the lifetime of Mixxx.
-    // This is currently true, but once we support hotplug, we will need better lifecycle management
-    // to keep this dialog and the controllermanager consistent.
     QList<Controller*> controllerList =
             m_pControllerManager->getControllerList(false, true);
     for (auto* pController : std::as_const(controllerList)) {

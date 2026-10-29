@@ -28,6 +28,7 @@ class ControllerManager : public QObject {
     ~ControllerManager() override;
 
     static const mixxx::Duration kPollInterval;
+    static const mixxx::Duration kDeviceDetectionInterval;
 
     QList<Controller*> getControllers() const;
     QList<Controller*> getControllerList(bool outputDevices=true, bool inputDevices=true);
@@ -43,11 +44,17 @@ class ControllerManager : public QObject {
     /// Prevent other parts of Mixxx from having to manually connect to our slots
     void setUpDevices() { emit requestSetUpDevices(); };
 
+    /// Must be called from the main thread.
+    void rescanDevices();
+    void setDeviceDetectionEnabled(bool enabled);
+
     static QList<QString> getMappingPaths(UserSettingsPointer pConfig);
 
   signals:
     void initialized();
+    void devicesAboutToChange();
     void devicesChanged();
+    void connectedDevicesChanged();
     void requestSetUpDevices();
     void requestShutdown();
     void requestInitialize();
@@ -69,9 +76,12 @@ class ControllerManager : public QObject {
     void slotShutdown();
     /// Calls poll() on all devices that have isPolling() true.
     void slotPollDevices();
+    void slotCheckConnectedDevices();
+    void slotUpdateDeviceDetection();
 
   private:
     void updateControllerList();
+    QStringList getConnectedDeviceIds();
     void startPolling();
     void stopPolling();
     void pollIfAnyControllersOpen();
@@ -83,6 +93,11 @@ class ControllerManager : public QObject {
     // because the CM is moved to its own thread and runs its own event loop.
     std::unique_ptr<ControllerLearningEventFilter> m_pControllerLearningEventFilter;
     QTimer m_pollTimer;
+    QTimer m_deviceDetectionTimer;
+    /// Lives on the main thread to receive connectedDevicesChanged().
+    std::unique_ptr<QObject> m_pMainThreadContext;
+    /// Accessed only from the ControllerManager thread.
+    QStringList m_connectedDeviceIds;
     mutable QMutex m_mutex;
     /// Guarded by m_mutex for main-thread reads.
     /// Written/iterated only on the ControllerManager thread

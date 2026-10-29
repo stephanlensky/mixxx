@@ -2,6 +2,7 @@
 
 #include <portmidi.h>
 
+#include <QFile>
 #include <QRegularExpression>
 
 #include "controllers/defs_controllers.h"
@@ -110,15 +111,36 @@ PortMidiEnumerator::PortMidiEnumerator(UserSettingsPointer pConfig)
 
 PortMidiEnumerator::~PortMidiEnumerator() {
     qDebug() << "Deleting PortMIDI devices...";
-    QListIterator<Controller*> dev_it(m_devices);
-    while (dev_it.hasNext()) {
-        delete dev_it.next();
-    }
+    deleteDevices();
     PmError err = Pm_Terminate();
     // Based on reading the source, it's not possible for this to fail.
     if (err != pmNoError) {
         qWarning() << "PortMidi error:" << Pm_GetErrorText(err);
     }
+}
+
+void PortMidiEnumerator::deleteDevices() {
+    while (m_devices.size() > 0) {
+        delete m_devices.takeLast();
+    }
+}
+
+QStringList PortMidiEnumerator::getConnectedDeviceIds() {
+    QStringList deviceIds;
+#ifdef __LINUX__
+    QFile clients(QStringLiteral("/proc/asound/seq/clients"));
+    if (!clients.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return deviceIds;
+    }
+    const QStringList lines = QString::fromUtf8(clients.readAll()).split(QChar('\n'));
+    for (const QString& line : lines) {
+        if (line.startsWith(QLatin1String("Client")) &&
+                line.contains(QLatin1String("[Kernel"))) {
+            deviceIds.append(line.simplified());
+        }
+    }
+#endif
+    return deviceIds;
 }
 
 bool shouldLinkInputToOutput(const QString& input_name,
@@ -182,14 +204,16 @@ bool shouldLinkInputToOutput(const QString& input_name,
 QList<Controller*> PortMidiEnumerator::queryDevices() {
     qDebug() << "Scanning PortMIDI devices:";
 
-    int iNumDevices = Pm_CountDevices();
+    deleteDevices();
 
-    QListIterator<Controller*> dev_it(m_devices);
-    while (dev_it.hasNext()) {
-        delete dev_it.next();
+    // PortMidi only refreshes its device list on initialization.
+    Pm_Terminate();
+    PmError err = Pm_Initialize();
+    if (err != pmNoError) {
+        qWarning() << "PortMidi error:" << Pm_GetErrorText(err);
     }
 
-    m_devices.clear();
+    int iNumDevices = Pm_CountDevices();
 
     const PmDeviceInfo* inputDeviceInfo = nullptr;
     const PmDeviceInfo* outputDeviceInfo = nullptr;

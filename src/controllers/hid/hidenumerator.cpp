@@ -119,14 +119,38 @@ bool recognizeDevice(const mixxx::hid::DeviceInfo& deviceInfo) {
 
 HidEnumerator::~HidEnumerator() {
     qDebug() << "Deleting HID devices...";
+    deleteDevices();
+    hid_exit();
+}
+
+void HidEnumerator::deleteDevices() {
     while (m_devices.size() > 0) {
         delete m_devices.takeLast();
     }
-    hid_exit();
+}
+
+QStringList HidEnumerator::getConnectedDeviceIds() {
+    QStringList deviceIds;
+#ifndef __ANDROID__
+    hid_device_info* p_device_info_list = hid_enumerate(0x0, 0x0);
+    for (const auto* p_device_info = p_device_info_list;
+            p_device_info;
+            p_device_info = p_device_info->next) {
+        const auto deviceInfo = mixxx::hid::DeviceInfo(*p_device_info);
+        const QString path = QString(deviceInfo.pathRaw());
+        if (deviceIds.contains(path) || !recognizeDevice(deviceInfo)) {
+            continue;
+        }
+        deviceIds.append(path);
+    }
+    hid_free_enumeration(p_device_info_list);
+#endif
+    return deviceIds;
 }
 
 QList<Controller*> HidEnumerator::queryDevices() {
     qInfo() << "Scanning USB HID devices";
+    deleteDevices();
 
 #ifdef __ANDROID__
     QJniObject context = QNativeInterface::QAndroidApplication::context();

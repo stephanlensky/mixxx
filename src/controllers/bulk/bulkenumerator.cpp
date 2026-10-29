@@ -35,9 +35,7 @@ BulkEnumerator::BulkEnumerator() = default;
 
 BulkEnumerator::~BulkEnumerator() {
     qDebug() << "Deleting USB Bulk devices...";
-    while (m_devices.size() > 0) {
-        delete m_devices.takeLast();
-    }
+    deleteDevices();
 #ifndef __ANDROID__
     if (m_pContext) {
         libusb_exit(m_pContext);
@@ -53,8 +51,40 @@ static bool is_interesting(const uint16_t idVendor, const uint16_t idProduct) {
             });
 }
 
+void BulkEnumerator::deleteDevices() {
+    while (m_devices.size() > 0) {
+        delete m_devices.takeLast();
+    }
+}
+
+QStringList BulkEnumerator::getConnectedDeviceIds() {
+    QStringList deviceIds;
+#ifndef __ANDROID__
+    if (!m_pContext) {
+        return deviceIds;
+    }
+    libusb_device** ppList;
+    ssize_t cnt = libusb_get_device_list(m_pContext, &ppList);
+    for (ssize_t i = 0; i < cnt; i++) {
+        libusb_device* pDevice = ppList[i];
+        struct libusb_device_descriptor desc;
+        libusb_get_device_descriptor(pDevice, &desc);
+        if (is_interesting(desc.idVendor, desc.idProduct)) {
+            deviceIds.append(QStringLiteral("%1:%2:%3:%4")
+                            .arg(QString::number(libusb_get_bus_number(pDevice)),
+                                    QString::number(libusb_get_device_address(pDevice)),
+                                    QString::number(desc.idVendor, 16),
+                                    QString::number(desc.idProduct, 16)));
+        }
+    }
+    libusb_free_device_list(ppList, 1);
+#endif
+    return deviceIds;
+}
+
 QList<Controller*> BulkEnumerator::queryDevices() {
     qDebug() << "Scanning USB Bulk devices:";
+    deleteDevices();
 #ifdef __ANDROID__
     QJniObject context = QNativeInterface::QAndroidApplication::context();
     QJniObject USB_SERVICE =

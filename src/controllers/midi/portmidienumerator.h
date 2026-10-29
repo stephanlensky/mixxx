@@ -11,8 +11,10 @@ class PortMidiEnumerator : public MidiEnumerator {
     ~PortMidiEnumerator() override;
 
     QList<Controller*> queryDevices() override;
+    QStringList getConnectedDeviceIds() override;
 
   private:
+    void deleteDevices();
     QList<Controller*> m_devices;
     UserSettingsPointer m_pConfig;
 };

@@ -12,8 +12,10 @@ class BulkEnumerator : public ControllerEnumerator {
     virtual ~BulkEnumerator();
 
     QList<Controller*> queryDevices() override;
+    QStringList getConnectedDeviceIds() override;
 
   private:
+    void deleteDevices();
     QList<Controller*> m_devices;
 #ifndef __ANDROID__
     libusb_context* m_pContext;
