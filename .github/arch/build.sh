@@ -30,5 +30,3 @@ sudo -u builder \
 
 cp mixxx-git-r*-x86_64.pkg.tar.zst "$out_dir/mixxx-git-x86_64.pkg.tar.zst"
 cp mixxx-git-debug-r*-x86_64.pkg.tar.zst "$out_dir/mixxx-git-debug-x86_64.pkg.tar.zst"
-ls mixxx-git-r*-x86_64.pkg.tar.zst | sed -E 's/mixxx-git-(r[0-9]+-[0-9]+)-x86_64.pkg.tar.zst/\1/' \
-        > "$out_dir/version"

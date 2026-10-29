@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # to publish the arch-latest release
+  contents: read # to fetch code (actions/checkout)
 
 concurrency:
   group: arch-package
@@ -17,12 +17,6 @@ jobs:
     if: github.repository == 'stephanlensky/mixxx'
     runs-on: ubuntu-latest
     steps:
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          df -h /
-
       - name: Check out repository
         uses: actions/checkout@v7
         with:
@@ -55,16 +49,12 @@ jobs:
           path: ${{ runner.temp }}/ccache
           key: arch-ccache-${{ github.sha }}
 
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          version="$(cat out/version)"
-          gh release delete arch-latest --cleanup-tag --yes || true
-          gh release create arch-latest \
-            --target "$GITHUB_SHA" \
-            --title "Arch package $version" \
-            --notes "Built from $GITHUB_SHA" \
-            --latest=false \
-            out/mixxx-git-x86_64.pkg.tar.zst \
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch-package
+          path: |
+            out/mixxx-git-x86_64.pkg.tar.zst
             out/mixxx-git-debug-x86_64.pkg.tar.zst
+          compression-level: 0
+          retention-days: 14
