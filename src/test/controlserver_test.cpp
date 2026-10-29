@@ -27,7 +27,7 @@ constexpr auto kSampleRate = audio::SampleRate(48000);
 constexpr auto kFirstBeat = audio::FramePos(400);
 constexpr double kBeatLength = 24000;
 const QString kGroup = QStringLiteral("[Channel1]");
-const ConfigKey kMainGainKey = ConfigKey(QStringLiteral("[Master]"), QStringLiteral("gain"));
+const ConfigKey kRemoteGainKey = ConfigKey(QStringLiteral("[Master]"), QStringLiteral("remote_gain"));
 
 TEST(ControlServerBeatTest, ConstTempo) {
     const auto beats = Beats(kFirstBeat, kBpm, kSampleRate, QString());
@@ -80,7 +80,7 @@ class ControlServerTest : public MixxxTest {
         addControl(kGroup, QStringLiteral("volume"), 1);
         addControl(kGroup, QStringLiteral("pregain"), 1);
         addControl(kGroup, QStringLiteral("orientation"), 0);
-        m_controls.push_back(std::make_unique<ControlAudioTaperPot>(kMainGainKey, -14, 14, 0.5));
+        m_controls.push_back(std::make_unique<ControlAudioTaperPot>(kRemoteGainKey, -14, 14, 0.5));
         m_controls.back()->set(1);
         PlayerInfo::create();
 
@@ -142,13 +142,13 @@ class ControlServerTest : public MixxxTest {
         ASSERT_TRUE(pSocket->waitForBytesWritten(1000));
     }
 
-    void waitForMainGain(double value) {
+    void waitForRemoteGain(double value) {
         QElapsedTimer timer;
         timer.start();
-        while (ControlObject::get(kMainGainKey) != value && timer.elapsed() < 2000) {
+        while (ControlObject::get(kRemoteGainKey) != value && timer.elapsed() < 2000) {
             QCoreApplication::processEvents();
         }
-        EXPECT_DOUBLE_EQ(value, ControlObject::get(kMainGainKey));
+        EXPECT_DOUBLE_EQ(value, ControlObject::get(kRemoteGainKey));
     }
 
     QJsonObject readMessage(QLocalSocket* pSocket, const QString& type) {
@@ -243,25 +243,25 @@ TEST_F(ControlServerTest, DisablingDisconnectsClients) {
     readMessage(&reconnected, QStringLiteral("decks"));
 }
 
-TEST_F(ControlServerTest, SetsMainGain) {
+TEST_F(ControlServerTest, SetsRemoteGain) {
     QLocalSocket socket;
     socket.connectToServer(getSocketPath());
     ASSERT_TRUE(socket.waitForConnected(1000));
     readMessage(&socket, QStringLiteral("decks"));
 
     sendCommand(&socket, R"({"type":"setMainGain","value":0.5})");
-    waitForMainGain(0.5);
+    waitForRemoteGain(0.5);
 
     sendCommand(&socket, R"({"type":"setMainGain","parameter":0.5})");
-    waitForMainGain(1);
+    waitForRemoteGain(1);
 
     sendCommand(&socket, "not json");
     sendCommand(&socket, R"({"type":"unknown","value":0.25})");
     sendCommand(&socket, R"({"type":"setMainGain","value":100})");
-    waitForMainGain(db2ratio(14.0));
+    waitForRemoteGain(db2ratio(14.0));
 
     readMessage(&socket, QStringLiteral("decks"));
-    EXPECT_DOUBLE_EQ(ControlObject::get(kMainGainKey),
+    EXPECT_DOUBLE_EQ(ControlObject::get(kRemoteGainKey),
             readMessage(&socket, QStringLiteral("decks"))
                     .value(QStringLiteral("mainGain"))
                     .toDouble());

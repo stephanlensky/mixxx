@@ -65,6 +65,8 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
           m_pEngineSync(std::make_unique<EngineSync>(pConfig)),
           m_pMainGain(std::make_unique<ControlAudioTaperPot>(
                   ConfigKey(group, "gain"), -14, 14, 0.5)),
+          m_pRemoteGain(std::make_unique<ControlAudioTaperPot>(
+                  ConfigKey(group, "remote_gain"), -14, 14, 0.5)),
           m_pBoothGain(std::make_unique<ControlAudioTaperPot>(
                   ConfigKey(group, "booth_gain"), -14, 14, 0.5)),
           m_pHeadGain(std::make_unique<ControlAudioTaperPot>(
@@ -590,7 +592,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
             }
 
             // Apply main gain
-            CSAMPLE_GAIN mainGain = static_cast<CSAMPLE_GAIN>(m_pMainGain->get());
+            CSAMPLE_GAIN mainGain = getMainOutputGain();
             SampleUtil::applyRampingGain(m_main.data(), m_mainGainOld, mainGain, bufferSize);
             m_mainGainOld = mainGain;
 
@@ -636,7 +638,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
             }
 
             // Apply main gain
-            CSAMPLE_GAIN mainGain = static_cast<CSAMPLE_GAIN>(m_pMainGain->get());
+            CSAMPLE_GAIN mainGain = getMainOutputGain();
             SampleUtil::applyRampingGain(
                     m_main.data(),
                     m_mainGainOld,
@@ -684,7 +686,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
             }
 
             // Apply main gain
-            CSAMPLE_GAIN mainGain = static_cast<CSAMPLE_GAIN>(m_pMainGain->get());
+            CSAMPLE_GAIN mainGain = getMainOutputGain();
             SampleUtil::applyRampingGain(
                     m_main.data(),
                     m_mainGainOld,
@@ -734,7 +736,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
         // record/broadcast signal
         if (m_pEngineEffectsManager) {
             GroupFeatureState mainFeatures;
-            mainFeatures.gain = m_pMainGain->get();
+            mainFeatures.gain = getMainOutputGain();
             m_pEngineEffectsManager->processPostFaderInPlace(
                     m_mainOutputHandle.handle(),
                     m_mainHandle.handle(),
@@ -802,7 +804,7 @@ void EngineMixer::applyMainEffects(std::size_t bufferSize) {
     // Apply main effects
     if (m_pEngineEffectsManager) {
         GroupFeatureState mainFeatures;
-        mainFeatures.gain = m_pMainGain->get();
+        mainFeatures.gain = getMainOutputGain();
         m_pEngineEffectsManager->processPostFaderInPlace(m_mainHandle.handle(),
                 m_mainHandle.handle(),
                 m_main.data(),
@@ -898,6 +900,10 @@ EngineChannel* EngineMixer::getChannel(const QString& group) {
         }
     }
     return nullptr;
+}
+
+CSAMPLE_GAIN EngineMixer::getMainOutputGain() const {
+    return static_cast<CSAMPLE_GAIN>(m_pMainGain->get() * m_pRemoteGain->get());
 }
 
 CSAMPLE_GAIN EngineMixer::getMainGain(int channelIndex) const {

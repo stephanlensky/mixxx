@@ -75,7 +75,7 @@ class ControlServer : public QObject {
     PollingControlProxy m_numDecks;
     PollingControlProxy m_crossfader;
     PollingControlProxy m_outputLatency;
-    PollingControlProxy m_mainGain;
+    PollingControlProxy m_remoteGain;
     std::vector<std::unique_ptr<DeckControls>> m_decks;
 };
 

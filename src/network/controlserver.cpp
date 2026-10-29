@@ -88,7 +88,7 @@ ControlServer::ControlServer(const QString& socketPath, QObject* pParent)
           m_numDecks(kAppGroup, QStringLiteral("num_decks")),
           m_crossfader(kMainGroup, QStringLiteral("crossfader")),
           m_outputLatency(kAppGroup, QStringLiteral("output_latency_ms")),
-          m_mainGain(kMainGroup, QStringLiteral("gain")) {
+          m_remoteGain(kMainGroup, QStringLiteral("remote_gain")) {
     m_pEnabled->setButtonMode(control::ButtonMode::Toggle);
     connect(m_pEnabled.get(),
             &ControlObject::valueChanged,
@@ -236,9 +236,9 @@ void ControlServer::handleCommand(const QJsonObject& command) {
     const QJsonValue value = command.value(QStringLiteral("value"));
     const QJsonValue parameter = command.value(QStringLiteral("parameter"));
     if (value.isDouble()) {
-        m_mainGain.set(value.toDouble());
+        m_remoteGain.set(value.toDouble());
     } else if (parameter.isDouble()) {
-        m_mainGain.setParameter(parameter.toDouble());
+        m_remoteGain.setParameter(parameter.toDouble());
     } else {
         kLogger.warning() << "Ignoring setMainGain without a numeric value or parameter";
     }
@@ -291,7 +291,7 @@ QJsonObject ControlServer::getDecksMessage() const {
             {QStringLiteral("time"), QDateTime::currentMSecsSinceEpoch()},
             {QStringLiteral("outputLatency"), m_outputLatency.get()},
             {QStringLiteral("crossfader"), m_crossfader.get()},
-            {QStringLiteral("mainGain"), m_mainGain.get()},
+            {QStringLiteral("mainGain"), m_remoteGain.get()},
             {QStringLiteral("decks"), decks},
     };
 }

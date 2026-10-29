@@ -260,6 +260,7 @@ class EngineMixer : public QObject, public AudioSource {
     // m_activeTalkoverChannels with each channel that is active for the
     // respective output.
     void processChannels(std::size_t bufferSize);
+    CSAMPLE_GAIN getMainOutputGain() const;
 
     ChannelHandleFactoryPointer m_pChannelHandleFactory;
     void applyMainEffects(std::size_t bufferSize);
@@ -300,6 +301,7 @@ class EngineMixer : public QObject, public AudioSource {
     QVarLengthArray<std::unique_ptr<ChannelInfo>, kPreallocatedChannels> m_channels;
 
     std::unique_ptr<ControlObject> m_pMainGain;
+    std::unique_ptr<ControlObject> m_pRemoteGain;
     std::unique_ptr<ControlObject> m_pBoothGain;
     std::unique_ptr<ControlObject> m_pHeadGain;
     std::unique_ptr<ControlObject> m_pSampleRate;
