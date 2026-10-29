@@ -58,6 +58,7 @@ makedepends=(
 	lilv
 	lv2
 	microsoft-gsl
+	ninja
 	qt6-shadertools
 	qt6-tools
 	portaudio
@@ -83,6 +84,7 @@ build() {
 	local ccache_support=$(hash ccache 2>/dev/null && echo -n "ON" || echo -n "OFF")
 	local cmake_options=(
 		-B build
+		-G Ninja
 		-D CMAKE_LINKER_TYPE=BFD
 		-D CMAKE_BUILD_TYPE=RelWithDebInfo
 		-D CMAKE_INSTALL_PREFIX=/usr
