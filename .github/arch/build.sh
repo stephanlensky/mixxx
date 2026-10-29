@@ -5,7 +5,7 @@ source_dir=/src
 build_dir=/build
 out_dir=/src/out
 
-trap 'chmod -R a+rwX "$out_dir" "$CCACHE_DIR" 2>/dev/null || true' EXIT
+trap 'ccache -s || true; chmod -R a+rwX "$out_dir" "$CCACHE_DIR" 2>/dev/null || true' EXIT
 
 pacman -Syu --noconfirm --needed ccache git
 (
@@ -13,13 +13,15 @@ pacman -Syu --noconfirm --needed ccache git
     pacman -S --noconfirm --needed "${depends[@]}" "${makedepends[@]}"
 )
 
-sed -i 's/-march=x86-64 /-march=x86-64-v3 /' /etc/makepkg.conf
+sed -i 's/-march=x86-64 /-march=x86-64-v3 /; s/^OPTIONS=(\(.*\) lto)/OPTIONS=(\1 !lto)/' /etc/makepkg.conf
+grep -q '^OPTIONS=.* !lto)' /etc/makepkg.conf
 git config --system --add safe.directory '*'
 
 useradd -m builder
 mkdir -p "$build_dir" "$out_dir" "$CCACHE_DIR"
 cp "$source_dir/.github/arch/PKGBUILD" "$build_dir/"
 chown -R builder "$build_dir" "$CCACHE_DIR"
+sudo -u builder --preserve-env=CCACHE_DIR ccache -z
 
 cd "$build_dir"
 sudo -u builder \

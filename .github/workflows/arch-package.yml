@@ -45,7 +45,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/src" \
             -v "${{ runner.temp }}/ccache:/ccache" \
             -e CCACHE_DIR=/ccache \
-            -e CCACHE_MAXSIZE=2G \
+            -e CCACHE_MAXSIZE=5G \
             -e MIXXX_OPTIMIZE=portable \
             -e MIXXX_SOURCE=file:///src \
             -e QT_QPA_PLATFORM=offscreen \
